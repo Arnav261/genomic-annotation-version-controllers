@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+requests
+python-multipart
+pydantic
+pydantic-settings
+gffutils
+pyensembl
+pyliftover
+requests
