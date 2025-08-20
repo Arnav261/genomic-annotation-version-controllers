@@ -11,8 +11,8 @@ router = APIRouter()
 
 @router.post("/")
 def compare_annotations(req: CompareAnnotationsRequest):
-    a = ensembl.get_gene_annotation(req.gene_symbol, req.version_a)
-    b = ensembl.get_gene_annotation(req.gene_symbol, req.version_b)
+a = ensembl.parse_gene_annotation(req.gene_symbol, req.version_a)
+b = ensembl.parse_gene_annotation(req.gene_symbol, req.version_b)
     return {
         "gene_symbol": req.gene_symbol,
         "version_a": a,
