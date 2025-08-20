@@ -18,4 +18,4 @@ router = APIRouter()
 def compare_annotations(req: AnnotationCompareRequest):
     a = ensembl.get_gene_annotation(req.gene, req.version_a)
     b = ensembl.get_gene_annotation(req.gene, req.version_b)
-    return {"gene_symbol": req.gene, "version_a": a, "version_b": b}
+    return {"gene": req.gene, "version_a": a, "version_b": b}
