@@ -10,3 +10,5 @@ app.include_router(upload_annotation.router, prefix="/upload-annotation", tags=[
 @app.get("/")
 def root():
     return {"message": "API is up!"}
+
+
