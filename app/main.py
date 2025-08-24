@@ -18,6 +18,7 @@ from dataclasses import dataclass, asdict
 import logging
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import pyliftover
 from pyliftover import LiftOver
 import tempfile
@@ -30,6 +31,14 @@ import numpy as np
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+=======
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize FastAPI
+>>>>>>> Stashed changes
 =======
 
 # Configure logging
@@ -59,6 +68,12 @@ app = FastAPI(
     - Cross-reference validation against Ensembl, RefSeq, GENCODE
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+    
+    Performance: Process 100K+ coordinates in minutes
+    Accuracy: >99.5% validation rate against reference databases
+>>>>>>> Stashed changes
 =======
     
     Performance: Process 100K+ coordinates in minutes
@@ -132,6 +147,7 @@ class GenomicDataProvider:
             response = self.session.get(url, params=params, timeout=15)
             
             if response.status_code == 200:
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 
@@ -564,6 +580,9 @@ GenomicDataProvider.liftover_coordinate_fallback = liftover_coordinate_fallback
 =======
                 offset = 1000 if from_assembly == "GRCh37" and to_assembly == "GRCh38" else -1000
 >>>>>>> Stashed changes
+=======
+                offset = 1000 if from_assembly == "GRCh37" and to_assembly == "GRCh38" else -1000
+>>>>>>> Stashed changes
                 
                 return {
                     "original": {"chr": chrom, "pos": pos, "assembly": from_assembly},
@@ -578,7 +597,11 @@ GenomicDataProvider.liftover_coordinate_fallback = liftover_coordinate_fallback
                 }
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 else:
+=======
+            else:
+>>>>>>> Stashed changes
 =======
             else:
 >>>>>>> Stashed changes
@@ -648,7 +671,11 @@ class AnnotationQualityAI:
         overall = sum(scores) / len(scores)
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         
+=======
+
+>>>>>>> Stashed changes
 =======
 
 >>>>>>> Stashed changes
@@ -754,7 +781,11 @@ async def process_gene_annotation_batch(job_id: str, gene_symbols: List[str], as
             
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             await asyncio.sleep(0.1) 
+=======
+            await asyncio.sleep(0.1)  
+>>>>>>> Stashed changes
 =======
             await asyncio.sleep(0.1)  
 >>>>>>> Stashed changes
@@ -781,7 +812,11 @@ def export_to_bed(results: List[Dict]) -> str:
         quality = item.get("quality_metrics", {})
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+ 
+>>>>>>> Stashed changes
 =======
  
 >>>>>>> Stashed changes
@@ -853,9 +888,12 @@ async def landing_page():
                 <h1>Genomic Annotation Version Controller</h1>
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 <h2>Professional-Grade Genomic Data Management</h2> 
                  </div>          
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
                 <h2>Professional-Grade Genomic Data Management</h2>
@@ -863,6 +901,9 @@ async def landing_page():
             </div>
             
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -941,7 +982,11 @@ async def real_coordinate_liftover(
     
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     Example Input:
+=======
+    **Example Input:**
+>>>>>>> Stashed changes
 =======
     **Example Input:**
 >>>>>>> Stashed changes
@@ -987,7 +1032,11 @@ async def gene_annotation_lookup(
     
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     Example: ["BRCA1", "BRCA2", "TP53", "EGFR", "BRAF"]
+=======
+    **Example:** ["BRCA1", "BRCA2", "TP53", "EGFR", "BRAF"]
+>>>>>>> Stashed changes
 =======
     **Example:** ["BRCA1", "BRCA2", "TP53", "EGFR", "BRAF"]
 >>>>>>> Stashed changes
@@ -1066,7 +1115,11 @@ async def export_results(job_id: str, format: str):
     format = format.lower()
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+    
+>>>>>>> Stashed changes
 =======
     
 >>>>>>> Stashed changes
@@ -1115,7 +1168,11 @@ def export_to_csv_enhanced(results: List[Dict]) -> str:
     writer = csv.writer(output)
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+    
+>>>>>>> Stashed changes
 =======
     
 >>>>>>> Stashed changes
@@ -1129,7 +1186,11 @@ def export_to_csv_enhanced(results: List[Dict]) -> str:
     ])
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+    
+>>>>>>> Stashed changes
 =======
     
 >>>>>>> Stashed changes
@@ -1156,7 +1217,11 @@ def export_to_csv_enhanced(results: List[Dict]) -> str:
             item.get("biotype", ""),
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             item.get("description", "")[:100],  
+=======
+            item.get("description", "")[:100], 
+>>>>>>> Stashed changes
 =======
             item.get("description", "")[:100], 
 >>>>>>> Stashed changes
@@ -1186,7 +1251,11 @@ async def upload_genomic_file(
         content = await file.read()
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+        
+>>>>>>> Stashed changes
 =======
         
 >>>>>>> Stashed changes
@@ -1205,7 +1274,11 @@ async def upload_genomic_file(
                 file_type = "csv"
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
+=======
+        
+>>>>>>> Stashed changes
 =======
         
 >>>>>>> Stashed changes
@@ -1233,6 +1306,7 @@ async def upload_genomic_file(
             return {"error": f"File type {file_type} not yet supported"}
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
         job_id = str(uuid.uuid4())[:8]
         job = BatchJob(job_id, len(coordinates), "file_upload")
@@ -1241,12 +1315,17 @@ async def upload_genomic_file(
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
         
         job_id = str(uuid.uuid4())[:8]
         job = BatchJob(job_id, len(coordinates), "file_upload")
         job_storage[job_id] = job
         
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -1269,6 +1348,7 @@ async def upload_genomic_file(
 
 if __name__ == "__main__":
     import uvicorn
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
@@ -1755,6 +1835,9 @@ async def process_conflict_detection_batch(
     except Exception as e:
         job.status = "failed"
         job.errors.append(f"Conflict detection failed: {str(e)}")
+=======
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+>>>>>>> Stashed changes
 =======
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 >>>>>>> Stashed changes
