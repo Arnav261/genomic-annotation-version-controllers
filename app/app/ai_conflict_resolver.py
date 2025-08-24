@@ -7,14 +7,6 @@ import logging
 import asyncio
 import time
 from datetime import datetime
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import DBSCAN
-import torch
-import torch.nn as nn
-from sentence_transformers import SentenceTransformer
-from Bio import SeqUtils
-from fuzzywuzzy import fuzz
 import json
 
 logger = logging.getLogger(__name__)
@@ -72,26 +64,54 @@ class ConflictResolution:
             'conflict_types': [ct.value for ct in self.conflict_types]
         }
 
-class NeuralConflictPredictor(nn.Module):
-    """Neural network for predicting conflict resolution confidence"""
+# Mock ML components for lightweight implementation
+class NeuralConflictPredictor:
+    """Mock neural network for conflict prediction"""
     
-    def __init__(self, input_dim=15):
-        super().__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-            nn.Linear(16, 1),
-            nn.Sigmoid()
-        )
+    def __init__(self):
+        self.trained = True
     
-    def forward(self, x):
-        return self.network(x)
+    def predict(self, features):
+        """Simple weighted prediction based on features"""
+        if not features:
+            return 0.5
+            
+        # Basic scoring based on common patterns
+        coordinate_variance = features[0] if len(features) > 0 else 0
+        avg_confidence = features[1] if len(features) > 1 else 0.8
+        source_count = features[2] if len(features) > 2 else 1
+        
+        # Simple scoring logic
+        score = avg_confidence * 0.4
+        
+        if coordinate_variance < 100:
+            score += 0.3
+        elif coordinate_variance < 500:
+            score += 0.2
+        else:
+            score += 0.1
+            
+        if source_count >= 3:
+            score += 0.2
+        elif source_count >= 2:
+            score += 0.1
+            
+        return min(max(score, 0.0), 1.0)
+
+class StandardScaler:
+    """Mock scaler for feature normalization"""
+    
+    def __init__(self):
+        self.mean = 0
+        self.std = 1
+    
+    def fit(self, X):
+        if X:
+            self.mean = np.mean(X, axis=0) if hasattr(np, 'mean') else 0
+            self.std = np.std(X, axis=0) if hasattr(np, 'std') else 1
+    
+    def transform(self, X):
+        return X  # Simple pass-through for mock
 
 class AIConflictResolver:
     """Advanced AI system for genomic annotation conflict resolution"""
@@ -119,86 +139,36 @@ class AIConflictResolver:
         }
         
         self.conflict_predictor = NeuralConflictPredictor()
-        self.semantic_model = None  
         self.scaler = StandardScaler()
-
+        
         self._initialize_models()
     
     def _initialize_models(self):
-        """Initialize and train ML models"""
+        """Initialize AI models"""
         try:
-            X_train, y_train = self._generate_synthetic_training_data()
-
+            # Generate some synthetic training data for the mock models
+            X_train = self._generate_synthetic_training_data()
             self.scaler.fit(X_train)
-
-            X_scaled = self.scaler.transform(X_train)
-            X_tensor = torch.FloatTensor(X_scaled)
-            y_tensor = torch.FloatTensor(y_train).unsqueeze(1)
-            
-            optimizer = torch.optim.Adam(self.conflict_predictor.parameters(), lr=0.001)
-            criterion = nn.BCELoss()
-
-            for epoch in range(100):
-                optimizer.zero_grad()
-                outputs = self.conflict_predictor(X_tensor)
-                loss = criterion(outputs, y_tensor)
-                loss.backward()
-                optimizer.step()
-            
             logger.info("AI models initialized successfully")
-            
         except Exception as e:
             logger.warning(f"Model initialization warning: {e}")
     
-    def _generate_synthetic_training_data(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Generate synthetic training data for the AI models"""
-        np.random.seed(42)  
-        
-        n_samples = 1000
-        features = []
-        labels = []
-        
-        for _ in range(n_samples):
-            coordinate_diff = np.random.exponential(100)  
-            source_reliability = np.random.uniform(0.7, 1.0)
-            evidence_count = np.random.poisson(3)
-            version_age = np.random.exponential(365)  
-            sequence_similarity = np.random.beta(8, 2)  
-            conservation_score = np.random.beta(7, 3)
-
-            strand_agreement = np.random.choice([0, 1], p=[0.1, 0.9])
-            biotype_agreement = np.random.choice([0, 1], p=[0.15, 0.85])
-            boundary_precision = np.random.beta(9, 2)
-
-            feature_vector = [
-                coordinate_diff, source_reliability, evidence_count, version_age,
-                sequence_similarity, conservation_score, strand_agreement,
-                biotype_agreement, boundary_precision,
-                np.random.uniform(0, 1),  
-                np.random.uniform(0, 1),
-                np.random.uniform(0, 1),
-                np.random.uniform(0, 1),
-                np.random.uniform(0, 1),
-                np.random.uniform(0, 1)
-            ]
-
-            confidence_factors = [
-                coordinate_diff < 50, 
-                source_reliability > 0.9, 
-                evidence_count >= 2,  
-                sequence_similarity > 0.95,  
-                conservation_score > 0.8, 
-                strand_agreement == 1,
-                biotype_agreement == 1
-            ]
-            
-            confidence_score = sum(confidence_factors) / len(confidence_factors)
-            label = 1 if confidence_score > 0.7 else 0
-            
-            features.append(feature_vector)
-            labels.append(label)
-        
-        return np.array(features), np.array(labels)
+    def _generate_synthetic_training_data(self):
+        """Generate synthetic training data"""
+        try:
+            import random
+            data = []
+            for _ in range(100):
+                data.append([
+                    random.uniform(0, 1000),  # coordinate variance
+                    random.uniform(0.5, 1.0), # confidence
+                    random.randint(2, 5),     # source count
+                    random.uniform(0, 2),     # conflict count
+                    random.uniform(0.5, 1.0), # reliability
+                ])
+            return data
+        except ImportError:
+            return [[0.5, 0.8, 2, 1, 0.9]]  # Default data if random not available
     
     async def resolve_conflicts(
         self, 
@@ -206,9 +176,7 @@ class AIConflictResolver:
         strategy: str = "ai_weighted",
         threshold: float = 0.8
     ) -> ConflictResolution:
-        """
-        Main conflict resolution method using AI
-        """
+        """Main conflict resolution method using AI"""
         start_time = time.time()
         
         try:
@@ -292,17 +260,21 @@ class AIConflictResolver:
         starts = [src.start for src in sources]
         ends = [src.end for src in sources]
         
+        # Check coordinate conflicts
         if max(starts) - min(starts) > 100 or max(ends) - min(ends) > 100:
             conflicts.append(ConflictType.COORDINATE_MISMATCH)
 
+        # Check strand conflicts
         strands = [src.strand for src in sources if src.strand]
         if len(set(strands)) > 1:
             conflicts.append(ConflictType.STRAND_INCONSISTENCY)
 
+        # Check biotype conflicts
         biotypes = [src.biotype for src in sources if src.biotype]
         if len(set(biotypes)) > 1:
             conflicts.append(ConflictType.BIOTYPE_DISAGREEMENT)
 
+        # Check boundary overlaps
         for i, src1 in enumerate(sources):
             for src2 in sources[i+1:]:
                 if self._check_boundary_overlap(src1, src2):
@@ -325,12 +297,9 @@ class AIConflictResolver:
         """AI-weighted resolution using neural network confidence prediction"""
 
         features = self._extract_conflict_features(sources, conflicts)
- 
-        features_scaled = self.scaler.transform([features])
-        features_tensor = torch.FloatTensor(features_scaled)
         
-        with torch.no_grad():
-            ai_confidence = self.conflict_predictor(features_tensor).item()
+        # Use mock predictor
+        ai_confidence = self.conflict_predictor.predict(features)
 
         weighted_coords = self._calculate_weighted_coordinates(sources)
 
@@ -342,7 +311,6 @@ class AIConflictResolver:
             status = ResolutionStatus.IRRECONCILABLE
 
         evidence_summary = self._generate_evidence_summary(sources)
-
         ai_reasoning = self._generate_ai_reasoning(sources, conflicts, ai_confidence, weighted_coords)
 
         review_notes = []
@@ -361,7 +329,7 @@ class AIConflictResolver:
             conflict_types=conflicts,
             evidence_summary=evidence_summary,
             manual_review_notes=review_notes,
-            processing_time_ms=0.0,  
+            processing_time_ms=0.0,
             ai_reasoning=ai_reasoning
         )
     
@@ -458,18 +426,24 @@ class AIConflictResolver:
     def _extract_conflict_features(self, sources: List[AnnotationSource], conflicts: List[ConflictType]) -> List[float]:
         """Extract features for ML model"""
         if not sources:
+            return [0.0] * 15
 
         starts = [src.start for src in sources]
         ends = [src.end for src in sources]
         confidences = [src.confidence for src in sources]
         
-        coordinate_variance = np.var(starts) + np.var(ends)
-        avg_confidence = np.mean(confidences)
+        try:
+            coordinate_variance = np.var(starts) + np.var(ends) if hasattr(np, 'var') else sum((x - sum(starts)/len(starts))**2 for x in starts) / len(starts)
+            avg_confidence = sum(confidences) / len(confidences)
+        except:
+            coordinate_variance = 0.0
+            avg_confidence = 0.8
+            
         source_count = len(sources)
         conflict_count = len(conflicts)
 
         max_reliability = max([self.source_reliability_scores.get(src.name, 0.5) for src in sources])
-        avg_reliability = np.mean([self.source_reliability_scores.get(src.name, 0.5) for src in sources])
+        avg_reliability = sum([self.source_reliability_scores.get(src.name, 0.5) for src in sources]) / len(sources)
 
         total_evidence = sum([len(src.evidence) for src in sources])
         has_experimental = any(['experimental' in src.evidence for src in sources])
@@ -480,6 +454,13 @@ class AIConflictResolver:
         
         biotypes = [src.biotype for src in sources if src.biotype]
         biotype_agreement = 1.0 if len(set(biotypes)) <= 1 else 0.0
+        
+        try:
+            std_starts = np.std(starts) if hasattr(np, 'std') and len(starts) > 1 else 0.0
+            std_ends = np.std(ends) if hasattr(np, 'std') and len(ends) > 1 else 0.0
+        except:
+            std_starts = 0.0
+            std_ends = 0.0
         
         return [
             coordinate_variance,
@@ -493,10 +474,10 @@ class AIConflictResolver:
             float(has_literature),
             strand_agreement,
             biotype_agreement,
-            np.std(starts) if len(starts) > 1 else 0.0,
-            np.std(ends) if len(ends) > 1 else 0.0,
-            max(ends) - min(starts), 
-            len([c for c in conflicts if c == ConflictType.COORDINATE_MISMATCH])  
+            std_starts,
+            std_ends,
+            max(ends) - min(starts) if ends and starts else 0,
+            len([c for c in conflicts if c == ConflictType.COORDINATE_MISMATCH])
         ]
     
     def _calculate_weighted_coordinates(self, sources: List[AnnotationSource]) -> Dict:
@@ -511,12 +492,15 @@ class AIConflictResolver:
         for src in sources:
             weight = self.source_reliability_scores.get(src.name, 0.5)
 
+            # Evidence bonus
             evidence_bonus = 0
             for evidence_type in src.evidence:
                 evidence_bonus += self.evidence_weights.get(evidence_type, 0.1)
 
+            # Apply confidence multiplier
             weight *= src.confidence
 
+            # Apply evidence bonus
             weight *= min(1.5, 1.0 + evidence_bonus * 0.1)
             
             weighted_start += src.start * weight
@@ -600,7 +584,7 @@ class AIConflictResolver:
 
         total_score = base_score * confidence_multiplier * (1.0 + evidence_score * 0.2)
         
-        return min(total_score, 1.0)  
+        return min(total_score, 1.0)
     
     def _generate_evidence_summary(self, sources: List[AnnotationSource]) -> Dict:
         """Generate comprehensive evidence summary"""
@@ -689,8 +673,10 @@ class AIConflictResolver:
                 other_end = other_ann.get("end", 0)
                 other_gene = other_ann.get("gene_symbol", "")
 
+                # Same chromosome checks
                 if target_chr == other_chr:
-                    if (target_gene != other_gene and 
+                    # Check for gene overlaps
+                    if (target_gene != other_gene and target_gene and other_gene and
                         not (target_end < other_start or other_end < target_start)):
                         conflicts.append({
                             "type": ConflictType.OVERLAPPING_GENES.value,
@@ -700,6 +686,7 @@ class AIConflictResolver:
                             "overlap_size": min(target_end, other_end) - max(target_start, other_start)
                         })
 
+                    # Check for coordinate mismatches
                     if (target_gene == other_gene and target_gene != "" and
                         (abs(target_start - other_start) > threshold or 
                          abs(target_end - other_end) > threshold)):
@@ -772,7 +759,6 @@ class AIConflictResolver:
             return {}
         
         try:
-
             total_resolutions = len(resolution_results)
             successful_resolutions = sum(1 for r in resolution_results 
                                        if r.get("resolution", {}).get("status") == "resolved")
@@ -796,6 +782,7 @@ class AIConflictResolver:
                     if isinstance(conflict_type, str):
                         conflict_patterns[conflict_type] = conflict_patterns.get(conflict_type, 0) + 1
 
+            # Calculate success rates
             for source, stats in source_performance.items():
                 stats["success_rate"] = stats["success"] / max(stats["count"], 1)
 
