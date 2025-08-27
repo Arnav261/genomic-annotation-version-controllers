@@ -363,7 +363,7 @@ def health():
 # Public API
 # ------------------------------------------------------------------------------
 @application.post("/gene-lookup")
-async def gene_lookup(gene_symbols: List[str], assembly: str = "GRCh38", background_tasks: BackgroundTasks | None = None):
+async def gene_lookup(gene_symbols: List[str], assembly: str = "GRCh38", background_tasks: BackgroundTasks):
     job_id = uuid.uuid4().hex[:8]
     job_storage[job_id] = BatchJob(job_id, len(gene_symbols), "gene_lookup")
     background_tasks.add_task(process_gene_annotation_batch, job_id, gene_symbols, assembly)
@@ -371,7 +371,7 @@ async def gene_lookup(gene_symbols: List[str], assembly: str = "GRCh38", backgro
 
 @application.post("/real-liftover")
 async def real_liftover(coordinates: List[Dict], from_assembly: str = "GRCh37", to_assembly: str = "GRCh38",
-                        background_tasks: BackgroundTasks | None = None):
+                        background_tasks: BackgroundTasks):
     job_id = uuid.uuid4().hex[:8]
     job_storage[job_id] = BatchJob(job_id, len(coordinates), "real_liftover")
     background_tasks.add_task(process_real_liftover_batch, job_id, coordinates, from_assembly, to_assembly)
@@ -379,7 +379,7 @@ async def real_liftover(coordinates: List[Dict], from_assembly: str = "GRCh37", 
 
 @application.post("/resolve-conflicts")
 async def resolve_conflicts(conflicting_annotations: List[Dict], resolution_strategy: str = "ai_weighted",
-                            confidence_threshold: float = 0.8, background_tasks: BackgroundTasks | None = None):
+                            confidence_threshold: float = 0.8, background_tasks: BackgroundTasks):
     if not ai_resolver:
         raise HTTPException(status_code=503, detail="AI conflict resolver not available")
     job_id = uuid.uuid4().hex[:8]
@@ -389,7 +389,7 @@ async def resolve_conflicts(conflicting_annotations: List[Dict], resolution_stra
 
 @application.post("/detect-conflicts")
 async def detect_conflicts(annotations: List[Dict], detection_sensitivity: str = "high",
-                           background_tasks: BackgroundTasks | None = None):
+                           background_tasks: BackgroundTasks):
     if not ai_resolver:
         raise HTTPException(status_code=503, detail="AI conflict resolver not available")
     job_id = uuid.uuid4().hex[:8]
