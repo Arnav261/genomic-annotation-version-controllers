@@ -1,26 +1,24 @@
-# Multi-stage image for smaller, reproducible builds
-FROM python:3.11-slim AS base
+FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1     PIP_NO_CACHE_DIR=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install build deps (if needed for scientific libs)
-RUN apt-get update && apt-get install -y --no-install-recommends     build-essential gcc && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy requirements and install
-COPY requirements.txt /app/requirements.txt
-# Install gunicorn and the modern uvicorn worker (uvicorn.workers is deprecated)
-RUN pip install --no-cache-dir -r requirements.txt gunicorn uvicorn-worker
+# OPTIONAL: Pre-download an embedding model used by your resolver (edit if different)
+# This prevents slow cold-starts and avoids download failures in runtime.
+RUN python - <<'PY'
+try:
+    from sentence_transformers import SentenceTransformer
+    SentenceTransformer("all-MiniLM-L6-v2")
+except Exception as e:
+    print("Model pre-download skipped or failed:", e)
+PY
 
-# Copy the rest of your app
-COPY . /app
+COPY . .
 
-# Expose the port Render/Cloud Run expect
-ENV PORT=8000
-EXPOSE 8000
-
-# Use Gunicorn with uvicorn worker for FastAPI
-# NOTE: if your app module is not 'main:app', change it below.
+EXPOSE 10000
 CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app.main:application", "--bind", "0.0.0.0:10000", "--workers", "2", "--timeout", "120"]
-
