@@ -449,12 +449,6 @@ def main():
     print(f"   • Advanced analytics and insights")
     print(f"   • Research-grade export formats")
     
-    print(f"\n🚀 Ready for Production Use!")
-    print(f"   • High-throughput genomics workflows")
-    print(f"   • Publication-quality results")
-    print(f"   • 99.5%+ accuracy validation")
-    print(f"   • Enterprise-grade reliability")
-    
     print(f"\n📚 Next Steps:")
     print(f"   • Check /docs for full API documentation")
     print(f"   • Use /health to monitor system status")
