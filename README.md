@@ -34,3 +34,14 @@ Your input will directly shape the direction and rigor of future releases.
 ## How to Cite
 If you use this work, please cite it as:  
 Asher, Arnav. (2025). Genomic Annotation Version Controller (Prototype). Zenodo. https://doi.org/10.5281/zenodo.16966073
+
+## Seeking Feedback
+I would be grateful for input on:
+- Accuracy of annotation interconversion  
+- Suggested validation datasets or benchmarks  
+- Features that would make this tool more useful in your research context  
+- Any limitations or blind spots you see  
+
+## Contributions
+I warmly welcome collaboration.  
+Please open issues, share suggestions, or contact me directly.  
