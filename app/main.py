@@ -344,17 +344,33 @@ async def process_conflict_detection_batch(job_id: str, annotations: List[Dict],
 def landing():
     return HTMLResponse("""
     <html><head><title>Genomic Annotation Version Controller</title></head>
-    <body style="font-family:system-ui;margin:40px">
-      <h1>Genomic Annotation Version Controller</h1>
-      <p>Research-ready API for liftover, gene lookup, and AI-assisted conflict resolution.</p>
+    <body style="font-family:system-ui;margin:40px;line-height:1.6">
+      <h1>Genomic Annotation Version Controller (v3.0.1)</h1>
       <p>
-        <a href="/demo">Interactive Demo</a> ·
-        <a href="/docs">OpenAPI Docs</a> ·
-        <a href="/redoc">ReDoc</a> ·
-        <a href="/health">Health</a>
+        Welcome — this platform is designed to provide <b>research-grade genomic data management</b>, 
+        including real-time coordinate liftover, AI-assisted annotation quality assessment, batch processing, 
+        and multi-format export (CSV, BED, VCF, JSON).
+      </p>
+      <p>
+        I am a <b>high school student</b> who developed this entire project independently. 
+        I’m sharing it with leading researchers to request your <b>feedback, critique, and suggestions</b> 
+        on how this system can be made most useful for the community.
+      </p>
+      <p>
+        Explore the resources:
+        <ul>
+          <li><a href="/demo">Interactive Demo</a></li>
+          <li><a href="/docs">OpenAPI Docs</a></li>
+          <li><a href="/redoc">ReDoc</a></li>
+          <li><a href="/health">System Health</a></li>
+        </ul>
+      </p>
+      <p style="margin-top:20px;font-size:small;color:#555">
+        DOI reference: <a href="https://doi.org/10.5281/zenodo.16966073">10.5281/zenodo.16966073</a>
       </p>
     </body></html>
     """)
+
 
 @application.get("/ping")
 def ping():
