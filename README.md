@@ -2,46 +2,112 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16966073.svg)](https://doi.org/10.5281/zenodo.16966073)
 
 ## Overview
-This project is a prototype AI-enabled tool for **managing and reconciling genomic annotation differences** between Ensembl releases and across **GRCh37 and GRCh38 genome builds**.  
-It introduces a reproducible way to track annotation version changes while applying **AI-based conflict resolution** to handle discrepancies.
-
-The tool currently provides both:
-- A **command-line utility** for direct analysis
-- A **web interface** for simple demonstrations
+This project is a **proof-of-concept** tool for managing genomic annotation differences between Ensembl releases and across GRCh37 and GRCh38 genome builds. It demonstrates software architecture patterns for genomic data processing while exploring automated conflict resolution approaches.
 
 ## Why I Built This
-I developed this project independently as a **high school student**, motivated by the challenges of comparing annotations between genome builds.  
-My aim is to create a framework that is practical for researchers, while also learning from the expertise of the genomics community, the combination of the two culminating in my passion for both the fields of genomics and bioinformatics and working on this project.  
+I developed this project independently as a **high school student** to learn about computational genomics and software engineering. My goal was to understand the technical challenges researchers face when working with evolving genome annotations and to build a functional system that demonstrates potential solutions.
 
-I am sharing this with leading researchers to request **feedback, suggestions, and critique**.  
-Your input will directly shape the direction and rigor of future releases.
+I am sharing this with the genomics community to request **feedback, technical critique, and guidance** on both the biological accuracy and software engineering approaches.
+
+## Technical Architecture
+
+### Core Engineering Features
+- **RESTful API Design**: OpenAPI/Swagger documentation with proper HTTP status codes
+- **Asynchronous Job Queue**: Background task processing with real-time status monitoring  
+- **Multiple Export Formats**: CSV, BED, VCF, and JSON with proper MIME types
+- **Comprehensive Error Handling**: Graceful degradation and informative error messages
+- **CORS Support**: Configurable cross-origin resource sharing for web applications
+- **Health Monitoring**: System status endpoints with uptime tracking
+
+### Current Implementation Status
+- ✅ **API Framework**: Fully functional FastAPI application with proper routing
+- ✅ **Job Management**: Background task processing with status tracking
+- ✅ **Data Export**: Multi-format export with appropriate headers
+- ✅ **Live Ensembl Integration**: Real queries to Ensembl REST API for gene metadata
+- 🔄 **Coordinate Liftover**: Prototype implementation using simplified coordinate transformation
+- 🔄 **Conflict Resolution**: K-means clustering for annotation grouping (real implementation)
+- 📋 **Validation Framework**: Testing against known NCBI coordinate pairs
 
 ## Features
-- AI-powered conflict resolution for annotation updates  
-- Automated version tracking across Ensembl releases  
-- Interconversion between **GRCh37** and **GRCh38** reference assemblies  
-- Transparent, reproducible change logs  
+- Real-time gene annotation lookup via Ensembl REST API
+- Batch coordinate processing with progress monitoring
+- Automated annotation quality assessment using configurable metrics
+- K-means clustering for grouping similar annotation sources
+- Transparent job tracking with detailed status reporting
+- Multi-format data export (CSV, BED, VCF, JSON)
 
-## Limitations
-- Currently a **prototype (v1.0.0)**, intended for evaluation rather than production  
-- Benchmarking on large, diverse datasets is ongoing  
-- Feedback on edge cases (e.g., overlapping transcripts, complex gene models) is especially welcome  
+## Current Limitations & Known Issues
+- **Coordinate Liftover**: Uses simplified offset calculation rather than UCSC LiftOver chain files
+- **Limited Validation**: Tested on small dataset of major genes; requires comprehensive benchmarking
+- **Prototype AI Components**: Clustering implementation is functional but simplified
+- **No Authentication**: Currently designed for research/demo use without user management
+- **Memory Storage**: Jobs stored in-memory; production would require persistent storage
 
-## Try It
-- **Web demo**: [genomic-annotation-version-controller.onrender.com](https://genomic-annotation-version-controller.onrender.com)  
-- **Zenodo archive (DOI)**: [10.5281/zenodo.16966073](https://doi.org/10.5281/zenodo.16966073)  
+## Validation Results
+Current testing against known NCBI RefSeq coordinates shows:
+- Prototype coordinate transformation provides directionally correct results
+- Quality assessment metrics identify potential annotation issues
+- Clustering successfully groups similar annotations from multiple sources
+
+**Note**: These are preliminary results from a prototype implementation. Production use would require extensive validation against established genomic databases and liftover tools.
+
+## Technical Dependencies
+- **FastAPI**: Web framework with automatic API documentation
+- **Pandas**: Data manipulation and export functionality  
+- **NumPy**: Numerical computations for clustering algorithms
+- **Requests**: HTTP client for external API integration
+- **Gradio**: Optional web interface for demonstrations
+
+## Try the Demo
+- **Web Interface**: [genomic-annotation-version-controller.onrender.com](https://genomic-annotation-version-controller.onrender.com)
+- **API Documentation**: Available at `/docs` endpoint
+- **Health Check**: Available at `/health` endpoint
+
+## Code Structure
+```
+├── main.py                 # FastAPI application and routing
+├── ai_conflict_resolver.py # Clustering and conflict resolution logic
+├── demo_ai_conflicts.py    # Demonstration scripts
+└── README.md              # This file
+```
+
+## Installation & Usage
+```bash
+# Install dependencies
+pip install fastapi pandas numpy requests uvicorn
+
+# Run the application
+uvicorn main:app --reload
+
+# Access API documentation
+curl http://localhost:8000/docs
+```
+
+## Seeking Technical Feedback
+I would appreciate input on:
+- **Software Architecture**: Is the API design following genomics community best practices?
+- **Biological Accuracy**: Are my assumptions about annotation conflicts reasonable?
+- **Algorithm Implementation**: How can the clustering approach be improved?
+- **Validation Strategy**: What benchmarking datasets would be most valuable?
+- **Production Considerations**: What would be needed for real research use?
+
+## Future Development Priorities
+1. Integration with UCSC LiftOver for accurate coordinate conversion
+2. Comprehensive validation against larger genomic datasets  
+3. Enhanced clustering algorithms with genomic-specific distance metrics
+4. Persistent storage and user session management
+5. Integration with additional annotation databases (RefSeq, GENCODE)
 
 ## How to Cite
-If you use this work, please cite it as:  
+If you find this work useful or provide feedback, please cite:
 Asher, Arnav. (2025). Genomic Annotation Version Controller (Prototype). Zenodo. https://doi.org/10.5281/zenodo.16966073
 
-## Seeking Feedback
-I would be grateful for input on:
-- Accuracy of annotation interconversion  
-- Suggested validation datasets or benchmarks  
-- Features that would make this tool more useful in your research context  
-- Any limitations or blind spots you see  
+## Contributing
+This is a learning project where I welcome:
+- Technical code reviews and suggestions
+- Biological accuracy corrections
+- Algorithm improvement recommendations
+- Testing with real genomic datasets
+- Guidance on genomics community standards
 
-## Contributions
-I warmly welcome collaboration.  
-Please open issues, share suggestions, or contact me directly.  
+Please open issues or contact me directly with feedback.
