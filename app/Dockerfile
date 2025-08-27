@@ -18,6 +18,6 @@ PY
 
 COPY . .
 
-EXPOSE $PORT
+EXPOSE 8000  
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app.main:application", "--bind", "0.0.0.0:${PORT}", "--workers", "2", "--timeout", "120"]
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker app.main:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"]
