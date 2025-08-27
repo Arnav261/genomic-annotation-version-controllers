@@ -19,15 +19,12 @@ services:
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
 
-  # Optional background worker if you add Celery/RQ (advanced)
-  # - type: worker
-  #   name: genomic-annotation-worker
-  #   env: docker
-  #   plan: starter
-  #   autoDeploy: true
-  #   dockerCommand: celery -A tasks.celery_app worker -l INFO
-  #   envVars:
-  #     - key: UPSTASH_REDIS_REST_URL
-  #       sync: false
-  #     - key: UPSTASH_REDIS_REST_TOKEN
-  #       sync: false
+services:
+  - type: web
+    name: genomic-annotation
+    env: docker
+    plan: free
+    region: frankfurt   # or virginia if more US users
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /healthz
