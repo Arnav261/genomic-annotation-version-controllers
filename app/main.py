@@ -55,7 +55,6 @@ logger = logging.getLogger(__name__)
 startup_time = time.time()
 job_storage: Dict[str, Any] = {}
 coordinate_cache: Dict[str, Any] = {}
-
 # ------------------------------------------------------------------------------
 # Optional AI conflict resolver
 # ------------------------------------------------------------------------------
@@ -72,8 +71,19 @@ except Exception as e_pkg:
         ai_resolver = AIConflictResolver()
         logger.info("AI conflict resolver loaded (fallback import).")
     except Exception as e_root:
-        logger.warning("AI conflict resolver not available - some features disabled. (%s | %s)", e_pkg, e_root)
-        ai_resolver = None
+        try:
+            # Extra fallback: nested app/app
+            from app.app.ai_conflict_resolver import AIConflictResolver, ConflictResolution, AnnotationSource  # type: ignore
+            ai_resolver = AIConflictResolver()
+            logger.info("AI conflict resolver loaded (nested fallback).")
+        except Exception as e_nested:
+            logger.warning(
+                "AI conflict resolver not available - some features disabled. (%s | %s | %s)",
+                e_pkg,
+                e_root,
+                e_nested,
+            )
+            ai_resolver = None
 
 # ------------------------------------------------------------------------------
 # Providers & helpers
