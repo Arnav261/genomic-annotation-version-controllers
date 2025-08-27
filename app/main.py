@@ -1358,20 +1358,10 @@ async def upload_genomic_file(
     except Exception as e:
         return {"error": f"File processing failed: {str(e)}"}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
-
-
-
-
-
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-application = FastAPI(title="Genomic Annotation API")
-
+# Enable CORS on the already-existing `application`
 origins = os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")
 application.add_middleware(
     CORSMiddleware,
@@ -1383,3 +1373,8 @@ application.add_middleware(
 @application.get("/healthz")
 def health():
     return {"status": "ok"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(application, host="0.0.0.0", port=8000, log_level="info")
+
