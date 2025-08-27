@@ -20,11 +20,16 @@ import logging
 
 from fastapi import FastAPI
 
-app = FastAPI()
+application = FastAPI()
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello world"}
+@application.get("/")
+def root():
+    return {"message": "Hello from Render!"}
+
+@application.get("/ping")
+def ping():
+    return {"status": "ok"}
+
 
 import tempfile
 import urllib.request
@@ -37,13 +42,10 @@ from fastapi import FastAPI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@app.get("/ping")
-def ping():
-    return {"status": "ok"}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-app = FastAPI(
+application = FastAPI(
     title="Genomic Annotation Version Controller",
     description="""
     Professional-Grade Genomic Data Management Platform
@@ -665,7 +667,7 @@ def export_to_vcf(results: List[Dict]) -> str:
     
     return "\n".join(vcf_header + vcf_lines)
 
-@app.get("/", response_class=HTMLResponse)
+@application.get("/", response_class=HTMLResponse)
 async def landing_page():
     """Professional landing page"""
     html_content = """
@@ -810,7 +812,7 @@ async def landing_page():
     """
     return HTMLResponse(content=html_content)
 
-@app.get("/health")
+@application.get("/health")
 async def health_check():
     """Enhanced health check"""
     return {
@@ -830,7 +832,7 @@ async def health_check():
         }
     }
 
-@app.post("/real-liftover")
+@application.post("/real-liftover")
 async def real_coordinate_liftover(
     coordinates: List[Dict],
     from_assembly: str = "GRCh37",
@@ -872,7 +874,7 @@ async def real_coordinate_liftover(
         "message": "Processing with real genomic databases..."
     }
 
-@app.post("/gene-lookup")
+@application.post("/gene-lookup")
 async def gene_annotation_lookup(
     gene_symbols: List[str],
     assembly: str = "GRCh38",
@@ -902,7 +904,7 @@ async def gene_annotation_lookup(
         "message": f"Looking up {len(gene_symbols)} genes in {assembly}..."
     }
 
-@app.post("/resolve-conflicts")
+@application.post("/resolve-conflicts")
 async def resolve_annotation_conflicts(
     conflicting_annotations: List[Dict],
     resolution_strategy: str = "ai_weighted",
@@ -957,10 +959,10 @@ async def resolve_annotation_conflicts(
         "confidence_threshold": confidence_threshold,
         "ai_models": ["coordinate_consensus", "evidence_weighting", "source_reliability"],
         "track_progress": f"/job-status/{job_id}",
-        "message": "🤖 AI analyzing annotation conflicts and generating resolutions..."
+        "message": "AI analyzing annotation conflicts and generating resolutions..."
     }
 
-@app.post("/detect-conflicts")
+@application.post("/detect-conflicts")
 async def detect_annotation_conflicts(
     annotations: List[Dict],
     detection_sensitivity: str = "high",
@@ -997,7 +999,7 @@ async def detect_annotation_conflicts(
         "message": f"Looking up {len(gene_symbols)} genes in {assembly}..."
     }
 
-@app.post("/resolve-conflicts")
+@application.post("/resolve-conflicts")
 async def resolve_annotation_conflicts(
     conflicting_annotations: List[Dict],
     resolution_strategy: str = "ai_weighted",
@@ -1055,7 +1057,7 @@ async def resolve_annotation_conflicts(
         "message": "AI analyzing annotation conflicts and generating resolutions..."
     }
 
-@app.post("/detect-conflicts")
+@application.post("/detect-conflicts")
 async def detect_annotation_conflicts(
     annotations: List[Dict],
     detection_sensitivity: str = "high",
@@ -1090,7 +1092,7 @@ async def detect_annotation_conflicts(
         "message": "AI scanning for potential annotation conflicts..."
     }
 
-@app.get("/job-status/{job_id}")
+@application.get("/job-status/{job_id}")
 async def get_job_status(job_id: str):
     """Enhanced job status with quality metrics"""
     job = job_storage.get(job_id)
@@ -1126,7 +1128,7 @@ async def get_job_status(job_id: str):
 
     return response
 
-@app.get("/conflict-insights/{job_id}")
+@application.get("/conflict-insights/{job_id}")
 async def get_conflict_insights(job_id: str):
     """
     Advanced Analytics for Resolved Conflicts
@@ -1165,7 +1167,7 @@ async def get_conflict_insights(job_id: str):
     
     return response
 
-@app.get("/export/{job_id}/{format}")
+@application.get("/export/{job_id}/{format}")
 async def export_results(job_id: str, format: str):
     """Enhanced export with multiple formats"""
     job = job_storage.get(job_id)
@@ -1265,7 +1267,7 @@ def export_to_csv_enhanced(results: List[Dict]) -> str:
     
     return output.getvalue()
 
-@app.post("/upload-file")
+@application.post("/upload-file")
 async def upload_genomic_file(
     file: UploadFile = File(...),
     file_type: str = "auto-detect",
@@ -1368,16 +1370,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-app = FastAPI(title="Genomic Annotation API")
+application = FastAPI(title="Genomic Annotation API")
 
 origins = os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")
-app.add_middleware(
+application.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/healthz")
+@application.get("/healthz")
 def health():
     return {"status": "ok"}
