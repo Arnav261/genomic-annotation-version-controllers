@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Genomic Annotation Tools</title>
+  <style>
+    body{font-family:ui-sans-serif,system-ui;margin:2rem;max-width:900px}
+    .card{border:1px solid #e5e7eb;border-radius:16px;padding:1rem;margin-bottom:1rem}
+    .row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+    .muted{color:#6b7280}
+    button{padding:.6rem 1rem;border-radius:10px;border:1px solid #ddd;cursor:pointer}
+    input,select{padding:.5rem;border-radius:10px;border:1px solid #ddd}
+    #log{white-space:pre-wrap;background:#0a0a0a;color:#e5e7eb;padding:1rem;border-radius:12px;min-height:120px}
+  </style>
+</head>
+<body>
+  <h1>Genomic Annotation Tools</h1>
+  <p class="muted">Upload annotations, run liftover, compare releases, and see AI conflict resolutions.</p>
+
+  <div class="card">
+    <h2>1) Liftover / Resolve</h2>
+    <div class="row">
+      <label>API Base URL <input id="api" size="40" placeholder="https://your-api.onrender.com"/></label>
+      <label>Source build <input id="src" value="GRCh37"/></label>
+      <label>Target build <input id="dst" value="GRCh38"/></label>
+      <label>Sensitivity <input id="sensitivity" value="medium"/></label>
+    </div>
+    <div class="row">
+      <input type="file" id="file"/>
+      <button id="start">Start Job</button>
+    </div>
+    <div class="row"><button id="poll">Poll Status</button><input id="job" placeholder="Job ID" size="42"/></div>
+  </div>
+
+  <div class="card">
+    <h2>Log</h2>
+    <div id="log"></div>
+  </div>
+
+<script>
+const log = (m)=>{document.getElementById("log").textContent += m + "\n"}
+
+async function startJob(){
+  const api = document.getElementById('api').value.trim()
+  const file = document.getElementById('file').files[0]
+  const src = document.getElementById('src').value.trim()
+  const dst = document.getElementById('dst').value.trim()
+  const sensitivity = document.getElementById('sensitivity').value.trim()
+
+  if(!api||!file){alert('Set API URL and choose a file');return}
+  const form = new FormData()
+  form.append('file', file)
+  form.append('source_build', src)
+  form.append('target_build', dst)
+  form.append('sensitivity', sensitivity)
+
+  try {
+    const res = await fetch(api + '/api/jobs', { method:'POST', body: form })
+    const data = await res.json()
+    if(data.job_id){
+      document.getElementById('job').value = data.job_id
+      log('Job created: ' + data.job_id)
+    } else {
+      log('Error: ' + JSON.stringify(data))
+    }
+  } catch (e) {
+    log('Request failed: ' + e.message)
+  }
+}
+
+async function pollStatus(){
+  const api = document.getElementById('api').value.trim()
+  const id = document.getElementById('job').value.trim()
+  if(!api||!id){alert('Set API URL and Job ID');return}
+  try {
+    const res = await fetch(api + '/api/jobs/' + id)
+    const data = await res.json()
+    log(JSON.stringify(data, null, 2))
+    if(data.download_url){
+      const a = document.createElement('a')
+      a.href = data.download_url
+      a.textContent = 'Download results'
+      a.target = '_blank'
+      document.body.appendChild(a)
+    }
+  } catch (e) {
+    log('Poll failed: ' + e.message)
+  }
+}
+
+document.getElementById('start').addEventListener('click', startJob)
+document.getElementById('poll').addEventListener('click', pollStatus)
+</script>
+</body>
+</html>
