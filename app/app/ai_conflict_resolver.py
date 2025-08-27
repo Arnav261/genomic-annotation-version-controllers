@@ -65,38 +65,244 @@ class ConflictResolution:
         }
 
 # Mock ML components for lightweight implementation
-class NeuralConflictPredictor:
-    """Mock neural network for conflict prediction"""
+# Replace the mock NeuralConflictPredictor in ai_conflict_resolver.py
+
+import numpy as np
+from typing import List, Dict, Tuple
+import math
+
+class AnnotationClusterer:
+    """Real k-means clustering implementation for grouping similar annotations"""
+    
+    def __init__(self, max_iterations=100, tolerance=1e-6):
+        self.max_iterations = max_iterations
+        self.tolerance = tolerance
+        self.centroids = None
+        self.labels = None
+    
+    def _calculate_distance(self, point1: List[float], point2: List[float]) -> float:
+        """Calculate Euclidean distance between two points"""
+        return math.sqrt(sum((a - b) ** 2 for a, b in zip(point1, point2)))
+    
+    def _initialize_centroids(self, data: List[List[float]], k: int) -> List[List[float]]:
+        """Initialize centroids using k-means++ method"""
+        if not data or k <= 0:
+            return []
+        
+        centroids = []
+        
+        # Choose first centroid randomly
+        import random
+        centroids.append(data[random.randint(0, len(data) - 1)].copy())
+        
+        # Choose remaining centroids with probability proportional to squared distance
+        for _ in range(1, k):
+            distances = []
+            for point in data:
+                min_dist = min(self._calculate_distance(point, c) for c in centroids)
+                distances.append(min_dist ** 2)
+            
+            total_dist = sum(distances)
+            if total_dist > 0:
+                # Weighted random selection
+                r = random.random() * total_dist
+                cumsum = 0
+                for i, dist in enumerate(distances):
+                    cumsum += dist
+                    if cumsum >= r:
+                        centroids.append(data[i].copy())
+                        break
+            else:
+                centroids.append(data[random.randint(0, len(data) - 1)].copy())
+        
+        return centroids
+    
+    def fit_predict(self, data: List[List[float]], k: int) -> Tuple[List[int], List[List[float]]]:
+        """Perform k-means clustering and return labels and centroids"""
+        if not data or k <= 0:
+            return [], []
+        
+        if k > len(data):
+            k = len(data)
+        
+        # Initialize centroids
+        centroids = self._initialize_centroids(data, k)
+        
+        for iteration in range(self.max_iterations):
+            # Assign points to closest centroid
+            labels = []
+            for point in data:
+                distances = [self._calculate_distance(point, c) for c in centroids]
+                labels.append(distances.index(min(distances)))
+            
+            # Update centroids
+            new_centroids = []
+            converged = True
+            
+            for i in range(k):
+                cluster_points = [data[j] for j, label in enumerate(labels) if label == i]
+                
+                if cluster_points:
+                    # Calculate mean of cluster points
+                    new_centroid = []
+                    for dim in range(len(cluster_points[0])):
+                        mean_val = sum(point[dim] for point in cluster_points) / len(cluster_points)
+                        new_centroid.append(mean_val)
+                    new_centroids.append(new_centroid)
+                    
+                    # Check convergence
+                    if (len(centroids) > i and 
+                        self._calculate_distance(new_centroid, centroids[i]) > self.tolerance):
+                        converged = False
+                else:
+                    # Keep old centroid if no points assigned
+                    new_centroids.append(centroids[i] if len(centroids) > i else data[0].copy())
+            
+            centroids = new_centroids
+            
+            if converged:
+                break
+        
+        self.centroids = centroids
+        self.labels = labels
+        
+        return labels, centroids
+
+class RealConflictResolver:
+    """Real ML-based conflict resolution using clustering"""
     
     def __init__(self):
-        self.trained = True
+        self.clusterer = AnnotationClusterer()
+        self.source_reliability_scores = {
+            "GENCODE": 0.98,
+            "Ensembl": 0.95,
+            "RefSeq": 0.92,
+            "UCSC": 0.88,
+        }
     
-    def predict(self, features):
-        """Simple weighted prediction based on features"""
-        if not features:
-            return 0.5
-            
-        # Basic scoring based on common patterns
-        coordinate_variance = features[0] if len(features) > 0 else 0
-        avg_confidence = features[1] if len(features) > 1 else 0.8
-        source_count = features[2] if len(features) > 2 else 1
+    def extract_features(self, sources: List[AnnotationSource]) -> List[List[float]]:
+        """Extract numerical features from annotation sources"""
+        features = []
         
-        # Simple scoring logic
-        score = avg_confidence * 0.4
+        for source in sources:
+            feature_vector = [
+                float(source.start),
+                float(source.end),
+                float(source.end - source.start),  # length
+                self.source_reliability_scores.get(source.name, 0.5),
+                source.confidence,
+                len(source.evidence),
+                1.0 if source.strand == '+' else (-1.0 if source.strand == '-' else 0.0),
+                1.0 if 'experimental' in source.evidence else 0.0,
+                1.0 if 'literature' in source.evidence else 0.0,
+            ]
+            features.append(feature_vector)
         
-        if coordinate_variance < 100:
-            score += 0.3
-        elif coordinate_variance < 500:
-            score += 0.2
-        else:
-            score += 0.1
+        return features
+    
+    def resolve_with_clustering(self, sources: List[AnnotationSource]) -> Dict:
+        """Resolve conflicts using k-means clustering"""
+        if len(sources) < 2:
+            return {"error": "Need at least 2 sources for clustering"}
+        
+        # Extract features
+        features = self.extract_features(sources)
+        
+        # Determine optimal number of clusters (max 3 for genomic data)
+        k = min(3, max(2, len(sources) // 2))
+        
+        # Perform clustering
+        labels, centroids = self.clusterer.fit_predict(features, k)
+        
+        # Find the largest cluster (consensus)
+        cluster_sizes = {}
+        for label in labels:
+            cluster_sizes[label] = cluster_sizes.get(label, 0) + 1
+        
+        largest_cluster = max(cluster_sizes.keys(), key=cluster_sizes.get)
+        consensus_sources = [sources[i] for i, label in enumerate(labels) 
+                           if label == largest_cluster]
+        
+        # Calculate consensus coordinates
+        if consensus_sources:
+            avg_start = sum(s.start for s in consensus_sources) / len(consensus_sources)
+            avg_end = sum(s.end for s in consensus_sources) / len(consensus_sources)
             
-        if source_count >= 3:
-            score += 0.2
-        elif source_count >= 2:
-            score += 0.1
+            # Weight by source reliability
+            weighted_start = sum(s.start * self.source_reliability_scores.get(s.name, 0.5) 
+                               for s in consensus_sources)
+            weighted_end = sum(s.end * self.source_reliability_scores.get(s.name, 0.5) 
+                             for s in consensus_sources)
+            total_weight = sum(self.source_reliability_scores.get(s.name, 0.5) 
+                             for s in consensus_sources)
             
-        return min(max(score, 0.0), 1.0)
+            if total_weight > 0:
+                final_start = int(weighted_start / total_weight)
+                final_end = int(weighted_end / total_weight)
+            else:
+                final_start = int(avg_start)
+                final_end = int(avg_end)
+            
+            confidence = len(consensus_sources) / len(sources)
+            
+            return {
+                "resolved_coordinates": {
+                    "start": final_start,
+                    "end": final_end,
+                    "method": "k_means_clustering"
+                },
+                "confidence": confidence,
+                "consensus_sources": [s.name for s in consensus_sources],
+                "cluster_analysis": {
+                    "total_clusters_found": len(set(labels)),
+                    "largest_cluster_size": len(consensus_sources),
+                    "cluster_labels": labels,
+                    "clustering_method": "k_means_plus_plus"
+                }
+            }
+        
+        return {"error": "No consensus cluster found"}
+
+# Replace in ai_conflict_resolver.py
+class AIConflictResolver:
+    def __init__(self):
+        # ... existing code ...
+        self.real_resolver = RealConflictResolver()  # Add this line
+    
+    async def _ai_weighted_resolution(self, gene_symbol: str, sources: List[AnnotationSource], 
+                                    conflicts: List[ConflictType], threshold: float) -> ConflictResolution:
+        """AI-weighted resolution using real clustering algorithm"""
+        
+        # Use real clustering instead of mock prediction
+        clustering_result = self.real_resolver.resolve_with_clustering(sources)
+        
+        if "error" not in clustering_result:
+            coords = clustering_result["resolved_coordinates"]
+            confidence = clustering_result["confidence"]
+            
+            status = (ResolutionStatus.RESOLVED if confidence >= threshold 
+                     else ResolutionStatus.MANUAL_REVIEW)
+            
+            ai_reasoning = f"K-means clustering identified {clustering_result['cluster_analysis']['total_clusters_found']} distinct annotation groups. " \
+                          f"Consensus from {len(clustering_result['consensus_sources'])} sources: {', '.join(clustering_result['consensus_sources'])}. " \
+                          f"Clustering confidence: {confidence:.3f}"
+            
+            return ConflictResolution(
+                gene_symbol=gene_symbol,
+                resolved_coordinates=coords,
+                confidence_score=confidence,
+                resolution_method="k_means_clustering",
+                status=status,
+                contributing_sources=clustering_result['consensus_sources'],
+                conflict_types=conflicts,
+                evidence_summary=self._generate_evidence_summary(sources),
+                manual_review_notes=[] if confidence >= threshold else ["Low clustering confidence"],
+                processing_time_ms=0.0,
+                ai_reasoning=ai_reasoning
+            )
+        
+        # Fallback to original method if clustering fails
+        return await self._consensus_voting_resolution(gene_symbol, sources, conflicts, threshold)
 
 class StandardScaler:
     """Mock scaler for feature normalization"""
