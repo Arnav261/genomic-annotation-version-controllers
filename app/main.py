@@ -20,6 +20,15 @@ import json
 from enum import Enum
 from dataclasses import dataclass, asdict
 import logging
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello world"}
+
 <<<<<<< Updated upstream
 import tempfile
 import urllib.request
