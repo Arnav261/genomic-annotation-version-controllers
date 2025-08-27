@@ -1,7 +1,8 @@
 import multiprocessing
 
 # Point Gunicorn to your FastAPI app in main.py
-wsgi_app = "main:app"
+wsgi_app = "app.main:app"
+
 
 workers = int(multiprocessing.cpu_count() * 0.5) or 1
 worker_class = "uvicorn.workers.UvicornWorker"
