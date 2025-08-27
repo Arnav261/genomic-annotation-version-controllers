@@ -115,8 +115,8 @@ class GenomicDataProvider:
                     "assembly": assembly,
                     "source": "Ensembl",
                     "version": data.get("version"),
-                    "version": data.get("version")
-                    "version": data.get("version")
+                    "version": data.get("version"),
+                    "version": data.get("version"),
                 }
             else:
                 logger.warning(f"Gene {gene_symbol} not found in Ensembl")
@@ -500,7 +500,7 @@ async def process_gene_annotation_batch(job_id: str, gene_symbols: List[str], as
 
 
             
-            await asyncio.sleep(0.1)  
+        await asyncio.sleep(0.1)  
         
         job.status = "completed"
         job.end_time = datetime.now()
@@ -1344,13 +1344,14 @@ async def upload_genomic_file(
             "message": f"Processing {file.filename} with {len(coordinates)} records"
         }
 
+        {
+            "message": f"Processing {file.filename} with {len(coordinates)} records"
+        }
 
+        {
             "message": f"Processing {file.filename} with {len(coordinates)} records"
         }
         
-
-            "message": f"Processing {file.filename} with {len(coordinates)} records"
-        }
 
     except Exception as e:
         return {"error": f"File processing failed: {str(e)}"}
