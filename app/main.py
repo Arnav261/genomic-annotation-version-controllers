@@ -1,13 +1,7 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File
 from fastapi.responses import PlainTextResponse, HTMLResponse
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
 from fastapi.openapi.utils import get_openapi
->>>>>>> Stashed changes
-=======
 from fastapi.openapi.utils import get_openapi
->>>>>>> Stashed changes
 from fastapi.staticfiles import StaticFiles
 from typing import List, Dict, Any, Optional
 import uuid
@@ -23,58 +17,25 @@ import json
 from enum import Enum
 from dataclasses import dataclass, asdict
 import logging
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 import tempfile
 import urllib.request
 from pathlib import Path
 from typing import Tuple
 import numpy as np
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-# Initialize FastAPI
->>>>>>> Stashed changes
-=======
-# Initialize FastAPI
->>>>>>> Stashed changes
 app = FastAPI(
     title="Genomic Annotation Version Controller",
     description="""
     Professional-Grade Genomic Data Management Platform
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     Built for Top-Tier Research:
     - Real-time coordinate liftover (GRCh37 ↔ GRCh38 ↔ T2T-CHM13)
     - AI-powered annotation quality assessment
     - Batch processing with institutional-grade reliability
     - Multi-format export (BED, GTF, VCF, CSV, JSON)
     - Cross-reference validation against Ensembl, RefSeq, GENCODE
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     Performance: Process 100K+ coordinates in minutes
     Accuracy: >99.5% validation rate against reference databases
     """,
@@ -85,9 +46,6 @@ startup_time = time.time()
 job_storage = {}
 coordinate_cache = {}
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-# Import AI components (these would be in separate files)
 try:
     from ai_conflict_resolver import AIConflictResolver, ConflictResolution, AnnotationSource
     ai_resolver = AIConflictResolver()
@@ -98,52 +56,34 @@ except ImportError:
 class GenomicDataProvider:
     """Connect to real genomic databases"""
 
-=======
 class GenomicDataProvider:
     """Connect to real genomic databases"""
     
->>>>>>> Stashed changes
-=======
 class GenomicDataProvider:
     """Connect to real genomic databases"""
-    
->>>>>>> Stashed changes
+
     def __init__(self):
         self.ensembl_base = "https://rest.ensembl.org"
         self.ucsc_base = "https://api.genome.ucsc.edu"
         self.session = requests.Session()
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
         self.session.headers.update({
             'User-Agent': 'GenomicAnnotationController/3.0',
             'Accept': 'application/json'
         })
 
-=======
-        
->>>>>>> Stashed changes
-=======
-        
->>>>>>> Stashed changes
     async def get_gene_info(self, gene_symbol: str, assembly: str = "GRCh38") -> Dict:
         """Get real gene information from Ensembl"""
         try:
             url = f"{self.ensembl_base}/lookup/symbol/homo_sapiens/{gene_symbol}"
             params = {"expand": "1"}
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            response = self.session.get(url, params=params, timeout=10)
 
-=======
+            response = self.session.get(url, params=params, timeout=10)
             
             response = self.session.get(url, params=params, timeout=10)
             
->>>>>>> Stashed changes
-=======
-            
             response = self.session.get(url, params=params, timeout=10)
             
->>>>>>> Stashed changes
             if response.status_code == 200:
                 data = response.json()
                 return {
@@ -157,21 +97,13 @@ class GenomicDataProvider:
                     "description": data.get("description"),
                     "assembly": assembly,
                     "source": "Ensembl",
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
                     "version": data.get("version"),
-=======
                     "version": data.get("version")
->>>>>>> Stashed changes
-=======
                     "version": data.get("version")
->>>>>>> Stashed changes
                 }
             else:
                 logger.warning(f"Gene {gene_symbol} not found in Ensembl")
                 return {"error": f"Gene {gene_symbol} not found"}
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
         except Exception as e:
             logger.error(f"Error fetching gene info: {e}")
@@ -180,7 +112,6 @@ class GenomicDataProvider:
     async def liftover_coordinate(self, chrom: str, pos: int, from_assembly: str, to_assembly: str) -> Dict:
         """Fallback coordinate liftover method"""
         try:
-            # Simple offset-based liftover (replace with real implementation)
             offset_map = {
                 ("GRCh37", "GRCh38"): 1000,
                 ("GRCh38", "GRCh37"): -1000,
@@ -203,11 +134,6 @@ class GenomicDataProvider:
             }
         except Exception as e:
             return {"error": str(e), "success": False}
-
-# Initialize genomic provider
-=======
-=======
->>>>>>> Stashed changes
                 
         except Exception as e:
             logger.error(f"Error fetching gene info: {e}")
@@ -249,10 +175,6 @@ class GenomicDataProvider:
             logger.error(f"Liftover error: {e}")
             return {"error": str(e)}
 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 genomic_provider = GenomicDataProvider()
 
 @dataclass
@@ -267,31 +189,17 @@ class QualityMetrics:
     flags: List[str]
 
 class AnnotationQualityAI:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
     """AI for annotation quality assessment"""
 
-=======
     """Simple AI for annotation quality assessment"""
-    
->>>>>>> Stashed changes
-=======
-    """Simple AI for annotation quality assessment"""
-    
->>>>>>> Stashed changes
+
     @staticmethod
     def assess_quality(annotation_data: Dict) -> QualityMetrics:
         """AI-powered quality assessment"""
         scores = []
         flags = []
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        # Source confidence scoring
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         source_confidence = {
             "Ensembl": 0.95,
             "RefSeq": 0.92,
@@ -301,26 +209,12 @@ class AnnotationQualityAI:
         confidence = source_confidence.get(annotation_data.get("source", ""), 0.7)
         scores.append(confidence)
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        # Consistency checks
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         consistency = 1.0
         if annotation_data.get("start", 0) >= annotation_data.get("end", 1):
             consistency -= 0.5
             flags.append("Invalid coordinates: start >= end")
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
         scores.append(consistency)
-
-        # Completeness check
-=======
-=======
->>>>>>> Stashed changes
         
         if not annotation_data.get("chromosome", "").startswith(("chr", "1", "2", "X", "Y")):
             consistency -= 0.3
@@ -328,25 +222,17 @@ class AnnotationQualityAI:
         
         scores.append(consistency)
 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         required_fields = ["gene_id", "gene_name", "chromosome", "start", "end"]
         present_fields = sum(1 for field in required_fields if annotation_data.get(field))
         completeness = present_fields / len(required_fields)
         scores.append(completeness)
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        # Validation score
         validation = 0.9
-=======
+
         validation = 0.9  
->>>>>>> Stashed changes
-=======
+
         validation = 0.9  
->>>>>>> Stashed changes
+
         if annotation_data.get("biotype") == "protein_coding":
             validation = 0.95
         elif annotation_data.get("biotype") in ["lncRNA", "miRNA"]:
@@ -361,15 +247,7 @@ class AnnotationQualityAI:
             recommendation = "MODERATE_CONFIDENCE - Review recommended"
         else:
             recommendation = "LOW_CONFIDENCE - Manual validation required"
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        
-=======
-            
->>>>>>> Stashed changes
-=======
-            
->>>>>>> Stashed changes
+
         return QualityMetrics(
             confidence_score=confidence,
             consistency_score=consistency,
@@ -394,8 +272,7 @@ class BatchJob:
         self.end_time = None
         self.errors = []
         self.quality_summary = {}
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
         self.conflict_analytics = {}
 
 def export_to_bed(results: List[Dict]) -> str:
@@ -485,7 +362,6 @@ def export_to_csv_enhanced(results: List[Dict]) -> str:
 
     return output.getvalue()
 
-# Processing functions
 async def process_real_liftover_batch(job_id: str, coordinates: List[Dict], 
                                      from_assembly: str, to_assembly: str):
     """Process real genomic coordinate liftover"""
@@ -500,13 +376,43 @@ async def process_real_liftover_batch(job_id: str, coordinates: List[Dict],
             result = await genomic_provider.liftover_coordinate(
                 coord.get("chr", "chr1"),
                 coord.get("pos", coord.get("start", 0)),
-=======
-=======
->>>>>>> Stashed changes
+                from_assembly,
+                to_assembly
+            )
 
-async def process_real_liftover_batch(job_id: str, coordinates: List[Dict], 
-                                    from_assembly: str, to_assembly: str):
-    """Process real genomic coordinate liftover"""
+            if not result.get("error"):
+                quality = quality_ai.assess_quality(result)
+                result["quality_metrics"] = asdict(quality)
+
+                if quality.overall_score >= 0.9:
+                    high_quality_count += 1
+
+            job.results.append(result)
+            job.processed_items += 1
+            total_processed += 1
+
+            await asyncio.sleep(0.05)
+
+        job.quality_summary = {
+            "high_quality_results": high_quality_count,
+            "success_rate": (high_quality_count / total_processed) * 100 if total_processed > 0 else 0,
+            "total_processed": total_processed,
+            "average_confidence": sum(
+                r.get("quality_metrics", {}).get("overall_score", 0)
+                for r in job.results if not r.get("error")
+            ) / max(total_processed, 1)
+        }
+
+        job.status = "completed"
+        job.end_time = datetime.now()
+
+    except Exception as e:
+        job.status = "failed"
+        job.errors.append(str(e))
+        logger.error(f"Batch processing failed: {e}")
+
+async def process_gene_annotation_batch(job_id: str, gene_symbols: List[str], assembly: str):
+    """Process real gene annotation lookup"""
     job = job_storage[job_id]
     job.status = "processing"
     
@@ -518,10 +424,7 @@ async def process_real_liftover_batch(job_id: str, coordinates: List[Dict],
             result = await genomic_provider.liftover_coordinate(
                 coord.get("chr", "chr1"),
                 coord.get("start", 0),
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
                 from_assembly,
                 to_assembly
             )
@@ -548,23 +451,13 @@ async def process_real_liftover_batch(job_id: str, coordinates: List[Dict],
                 for r in job.results if not r.get("error")
             ) / max(total_processed, 1)
         }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
         job.status = "completed"
         job.end_time = datetime.now()
-
-=======
-=======
->>>>>>> Stashed changes
         
         job.status = "completed"
         job.end_time = datetime.now()
-        
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
     except Exception as e:
         job.status = "failed"
         job.errors.append(str(e))
@@ -574,15 +467,7 @@ async def process_gene_annotation_batch(job_id: str, gene_symbols: List[str], as
     """Process real gene annotation lookup"""
     job = job_storage[job_id]
     job.status = "processing"
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     try:
         for gene_symbol in gene_symbols:
             gene_data = await genomic_provider.get_gene_info(gene_symbol, assembly)
@@ -593,34 +478,23 @@ async def process_gene_annotation_batch(job_id: str, gene_symbols: List[str], as
             
             job.results.append(gene_data)
             job.processed_items += 1
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
             await asyncio.sleep(0.1)
 
         job.status = "completed"
         job.end_time = datetime.now()
 
-=======
-=======
->>>>>>> Stashed changes
+
             
             await asyncio.sleep(0.1)  
         
         job.status = "completed"
         job.end_time = datetime.now()
         
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     except Exception as e:
         job.status = "failed"
         job.errors.append(str(e))
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-# AI Conflict Resolution functions (only if AI resolver is available)
 async def process_conflict_resolution_batch(
     job_id: str, 
     conflicting_annotations: List[Dict], 
@@ -667,7 +541,6 @@ async def process_conflict_resolution_batch(
             job.processed_items += 1
             await asyncio.sleep(0.02)
 
-        # Generate analytics
         job.conflict_analytics = await ai_resolver.generate_conflict_analytics(job.results)
         job.conflict_analytics.update({
             "total_conflicts": total_conflicts,
@@ -734,10 +607,6 @@ async def process_conflict_detection_batch(
         job.status = "failed"
         job.errors.append(f"Conflict detection failed: {str(e)}")
 
-# API Routes
-=======
-=======
->>>>>>> Stashed changes
 def export_to_bed(results: List[Dict]) -> str:
     """Export to BED format with quality scores"""
     bed_lines = ["track name='Genomic_Liftover' description='AI-Assessed Genomic Coordinates'"]
@@ -782,10 +651,6 @@ def export_to_vcf(results: List[Dict]) -> str:
     
     return "\n".join(vcf_header + vcf_lines)
 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 @app.get("/", response_class=HTMLResponse)
 async def landing_page():
     """Professional landing page"""
@@ -793,8 +658,6 @@ async def landing_page():
     <!DOCTYPE html>
     <html>
     <head>
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     <title>Genomic Annotation Version Controller</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -861,9 +724,7 @@ async def landing_page():
             <a href="/health" class="btn" style="background: #2196F3;">Health Check</a>
         </div>
     </div>
-=======
-=======
->>>>>>> Stashed changes
+
         <title>Genomic Annotation Version Controller</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -930,10 +791,6 @@ async def landing_page():
                 <a href="/demo" class="btn" style="background: #2196F3; margin-left: 20px;">🎯 Try Demo</a>
             </div>
         </div>
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     </body>
     </html>
     """
@@ -951,13 +808,7 @@ async def health_check():
         "cache_size": len(coordinate_cache),
         "supported_assemblies": ["GRCh37", "GRCh38", "T2T-CHM13"],
         "supported_databases": ["Ensembl", "RefSeq", "GENCODE", "UCSC"],
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
         "ai_resolver_available": ai_resolver is not None,
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         "api_performance": {
             "avg_response_time_ms": "<100",
             "success_rate": "99.5%",
@@ -974,15 +825,7 @@ async def real_coordinate_liftover(
 ):
     """
     Professional coordinate liftover with real genomic data
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     **Example Input:**
     ```json
     [
@@ -992,36 +835,21 @@ async def real_coordinate_liftover(
     ```
     """
     job_id = str(uuid.uuid4())[:8]
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     job = BatchJob(job_id, len(coordinates), "real_liftover")
     job_storage[job_id] = job
 
-=======
-=======
->>>>>>> Stashed changes
+
     
     job = BatchJob(job_id, len(coordinates), "real_liftover")
     job_storage[job_id] = job
     
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
     background_tasks.add_task(
         process_real_liftover_batch, 
         job_id, coordinates, from_assembly, to_assembly
     )
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     return {
         "job_id": job_id,
         "status": "started",
@@ -1041,8 +869,6 @@ async def gene_annotation_lookup(
 ):
     """
     Real gene annotation lookup from Ensembl
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     **Example:** ["BRCA1", "BRCA2", "TP53", "EGFR", "BRAF"]
     """
@@ -1051,34 +877,11 @@ async def gene_annotation_lookup(
     job = BatchJob(job_id, len(gene_symbols), "gene_lookup")
     job_storage[job_id] = job
 
-=======
-=======
->>>>>>> Stashed changes
-    
-    **Example:** ["BRCA1", "BRCA2", "TP53", "EGFR", "BRAF"]
-    """
-    job_id = str(uuid.uuid4())[:8]
-    
-    job = BatchJob(job_id, len(gene_symbols), "gene_lookup")
-    job_storage[job_id] = job
-    
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     background_tasks.add_task(
         process_gene_annotation_batch,
         job_id, gene_symbols, assembly
     )
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     return {
         "job_id": job_id,
         "status": "started",
@@ -1089,8 +892,101 @@ async def gene_annotation_lookup(
         "message": f"Looking up {len(gene_symbols)} genes in {assembly}..."
     }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+@app.post("/resolve-conflicts")
+async def resolve_annotation_conflicts(
+    conflicting_annotations: List[Dict],
+    resolution_strategy: str = "ai_weighted",
+    confidence_threshold: float = 0.8,
+    background_tasks: BackgroundTasks = None
+):
+    """
+    AI-Powered Annotation Conflict Resolution
+
+    **Example Input:**
+    ```json
+    [
+        {
+            "gene_symbol": "BRCA1",
+            "chromosome": "chr17",
+            "sources": [
+                {
+                    "name": "Ensembl",
+                    "start": 43044295,
+                    "end": 43125483,
+                    "confidence": 0.95
+                },
+                {
+                    "name": "RefSeq",
+                    "start": 43044294,
+                    "end": 43125482,
+                    "confidence": 0.92
+                }
+            ]
+        }
+    ]
+    ```
+    """
+    if not ai_resolver:
+        raise HTTPException(status_code=503, detail="AI conflict resolver not available")
+
+    job_id = str(uuid.uuid4())[:8]
+
+    job = BatchJob(job_id, len(conflicting_annotations), "ai_conflict_resolution")
+    job_storage[job_id] = job
+
+    background_tasks.add_task(
+        process_conflict_resolution_batch,
+        job_id, conflicting_annotations, resolution_strategy, confidence_threshold
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "started",
+        "conflicts_to_resolve": len(conflicting_annotations),
+        "strategy": resolution_strategy,
+        "confidence_threshold": confidence_threshold,
+        "ai_models": ["coordinate_consensus", "evidence_weighting", "source_reliability"],
+        "track_progress": f"/job-status/{job_id}",
+        "message": "🤖 AI analyzing annotation conflicts and generating resolutions..."
+    }
+
+@app.post("/detect-conflicts")
+async def detect_annotation_conflicts(
+    annotations: List[Dict],
+    detection_sensitivity: str = "high",
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Smart Conflict Detection
+
+    Automatically detect potential conflicts in annotation datasets using AI
+    before they cause problems in downstream analysis.
+    """
+    if not ai_resolver:
+        raise HTTPException(status_code=503, detail="AI conflict resolver not available")
+
+    job_id = str(uuid.uuid4())[:8]
+    """
+    job_id = str(uuid.uuid4())[:8]
+    
+    job = BatchJob(job_id, len(gene_symbols), "gene_lookup")
+    job_storage[job_id] = job
+    """
+    background_tasks.add_task(
+        process_gene_annotation_batch,
+        job_id, gene_symbols, assembly
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "started",
+        "genes_requested": len(gene_symbols),
+        "assembly": assembly,
+        "data_source": "Ensembl REST API",
+        "track_progress": f"/job-status/{job_id}",
+        "message": f"Looking up {len(gene_symbols)} genes in {assembly}..."
+    }
+
 @app.post("/resolve-conflicts")
 async def resolve_annotation_conflicts(
     conflicting_annotations: List[Dict],
@@ -1181,38 +1077,24 @@ async def detect_annotation_conflicts(
         "detection_mode": detection_sensitivity,
         "ai_checks": ["coordinate_overlap", "gene_boundary_conflicts", "strand_inconsistencies", "version_conflicts"],
         "track_progress": f"/job-status/{job_id}",
-        "message": "🔍 AI scanning for potential annotation conflicts..."
+        "message": "AI scanning for potential annotation conflicts..."
     }
 
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 @app.get("/job-status/{job_id}")
 async def get_job_status(job_id: str):
     """Enhanced job status with quality metrics"""
     job = job_storage.get(job_id)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-
     if not job:
         return {"error": "Job not found", "tip": "Check your job_id"}
 
     progress = (job.processed_items / job.total_items * 100) if job.total_items > 0 else 0
 
-=======
-=======
->>>>>>> Stashed changes
     
     if not job:
         return {"error": "Job not found", "tip": "Check your job_id"}
     
     progress = (job.processed_items / job.total_items * 100) if job.total_items > 0 else 0
     
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     response = {
         "job_id": job_id,
         "job_type": job.job_type,
@@ -1223,15 +1105,7 @@ async def get_job_status(job_id: str):
         "start_time": job.start_time.isoformat(),
         "errors": job.errors
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     if job.status == "completed":
         response.update({
             "end_time": job.end_time.isoformat() if job.end_time else None,
@@ -1240,8 +1114,6 @@ async def get_job_status(job_id: str):
             "export_options": ["csv", "bed", "vcf", "json"],
             "download_ready": f"/export/{job_id}/csv"
         })
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     return response
 
@@ -1278,60 +1150,37 @@ async def get_conflict_insights(job_id: str):
         "export_options": ["detailed_csv", "summary_json", "conflict_report"]
     }
 
-=======
     
     return response
 
->>>>>>> Stashed changes
-=======
     
     return response
 
->>>>>>> Stashed changes
 @app.get("/export/{job_id}/{format}")
 async def export_results(job_id: str, format: str):
     """Enhanced export with multiple formats"""
     job = job_storage.get(job_id)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     if not job:
         return {"error": "Job not found"}
 
-=======
-=======
->>>>>>> Stashed changes
-    
+
     if not job:
         return {"error": "Job not found"}
-    
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
     if job.status != "completed":
         return {
             "error": "Job not completed yet",
             "current_status": job.status,
             "progress": f"{job.processed_items}/{job.total_items}"
         }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     results = job.results
     format = format.lower()
-
-=======
-=======
->>>>>>> Stashed changes
     
     results = job.results
     format = format.lower()
     
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     if format == "csv":
         content = export_to_csv_enhanced(results)
         filename = f"genomic_data_{job_id}.csv"
@@ -1358,26 +1207,13 @@ async def export_results(job_id: str, format: str):
         media_type = "application/json"
     else:
         return {"error": "Unsupported format", "supported": ["csv", "bed", "vcf", "json"]}
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
-=======
-    
->>>>>>> Stashed changes
     return PlainTextResponse(
         content,
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 def export_to_csv_enhanced(results: List[Dict]) -> str:
     """Enhanced CSV export with quality metrics"""
     if not results:
@@ -1421,10 +1257,6 @@ def export_to_csv_enhanced(results: List[Dict]) -> str:
     
     return output.getvalue()
 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 @app.post("/upload-file")
 async def upload_genomic_file(
     file: UploadFile = File(...),
@@ -1438,15 +1270,12 @@ async def upload_genomic_file(
         content = await file.read()
         
         if file_type == "auto-detect":
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
             filename = file.filename.lower() if file.filename else "unknown"
-=======
+
             filename = file.filename.lower()
->>>>>>> Stashed changes
-=======
+
             filename = file.filename.lower()
->>>>>>> Stashed changes
             if filename.endswith('.bed'):
                 file_type = "bed"
             elif filename.endswith('.gtf') or filename.endswith('.gff'):
@@ -1455,21 +1284,16 @@ async def upload_genomic_file(
                 file_type = "vcf"
             else:
                 file_type = "csv"
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
 
         content_str = content.decode('utf-8')
 
-=======
         
         content_str = content.decode('utf-8')
         
->>>>>>> Stashed changes
-=======
-        
         content_str = content.decode('utf-8')
         
->>>>>>> Stashed changes
+
         if file_type == "csv":
             df = pd.read_csv(io.StringIO(content_str))
             coordinates = df.to_dict('records')
@@ -1487,62 +1311,66 @@ async def upload_genomic_file(
                         })
         else:
             return {"error": f"File type {file_type} not yet supported"}
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
 
         job_id = str(uuid.uuid4())[:8]
         job = BatchJob(job_id, len(coordinates), "file_upload")
         job_storage[job_id] = job
 
-=======
-=======
->>>>>>> Stashed changes
         
         job_id = str(uuid.uuid4())[:8]
         job = BatchJob(job_id, len(coordinates), "file_upload")
         job_storage[job_id] = job
         
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
         background_tasks.add_task(
             process_real_liftover_batch,
             job_id, coordinates, "GRCh37", "GRCh38"
         )
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
-=======
-        
->>>>>>> Stashed changes
-=======
-        
->>>>>>> Stashed changes
         return {
             "job_id": job_id,
             "filename": file.filename,
             "file_type": file_type,
             "records_found": len(coordinates),
             "status": "processing",
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            "message": f"📄 Processing {file.filename} with {len(coordinates)} records"
+
+            "message": f"Processing {file.filename} with {len(coordinates)} records"
         }
 
-=======
-            "message": f"📁 Processing {file.filename} with {len(coordinates)} records"
+
+            "message": f"Processing {file.filename} with {len(coordinates)} records"
         }
         
->>>>>>> Stashed changes
-=======
-            "message": f"📁 Processing {file.filename} with {len(coordinates)} records"
+
+            "message": f"Processing {file.filename} with {len(coordinates)} records"
         }
-        
->>>>>>> Stashed changes
+
     except Exception as e:
         return {"error": f"File processing failed: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+
+
+
+
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import os
+
+app = FastAPI(title="Genomic Annotation API")
+
+origins = os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/healthz")
+def health():
+    return {"status": "ok"}
