@@ -1,4 +1,3 @@
-# Minimal Render blueprint. Add this file at the repo root as render.yaml
 services:
   - type: web
     name: genomic-annotation-api
@@ -10,7 +9,7 @@ services:
       - key: ENV
         value: production
       - key: CORS_ALLOW_ORIGINS
-        value: https://YOUR_FRONTEND_HOST   # set to your static site origin
+        value: "*"  # set to your static site origin
       - key: MAX_UPLOAD_MB
         value: "50"
       # Optional Redis (Upstash) for jobs/cache
