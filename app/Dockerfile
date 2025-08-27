@@ -22,5 +22,4 @@ EXPOSE 8000
 
 # Use Gunicorn with uvicorn worker for FastAPI
 # NOTE: if your app module is not 'main:app', change it below.
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:10000", "main:app"]
-
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:10000", "--workers", "2", "--timeout", "120"]

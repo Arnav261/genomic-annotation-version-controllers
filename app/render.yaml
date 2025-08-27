@@ -27,4 +27,5 @@ services:
     region: frankfurt   # or virginia if more US users
     dockerfilePath: ./Dockerfile
     autoDeploy: true
-    healthCheckPath: /healthz
+    healthCheckPath: /ping
+
