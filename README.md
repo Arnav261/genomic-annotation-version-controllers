@@ -5,9 +5,9 @@
 This project is a **proof-of-concept** tool for managing genomic annotation differences between Ensembl releases and across GRCh37 and GRCh38 genome builds. It demonstrates software architecture patterns for genomic data processing while exploring automated conflict resolution approaches.
 
 ## Why I Built This
-I developed this project independently as a **high school student** to learn about computational genomics and software engineering. My goal was to understand the technical challenges researchers face when working with evolving genome annotations and to build a functional system that demonstrates potential solutions.
+I developed this project independently as a high school student to learn about computational genomics and software engineering. My goal was to understand the technical challenges researchers face when working with evolving genome annotations and to build a functional system that demonstrates potential solutions.
 
-I am sharing this with the genomics community to request **feedback, technical critique, and guidance** on both the biological accuracy and software engineering approaches.
+I am sharing this with the genomics community to request feedback, technical critique, and guidance on both the biological accuracy and software engineering approaches.
 
 ## Technical Architecture
 
@@ -20,13 +20,13 @@ I am sharing this with the genomics community to request **feedback, technical c
 - **Health Monitoring**: System status endpoints with uptime tracking
 
 ### Current Implementation Status
-- ✅ **API Framework**: Fully functional FastAPI application with proper routing
-- ✅ **Job Management**: Background task processing with status tracking
-- ✅ **Data Export**: Multi-format export with appropriate headers
-- ✅ **Live Ensembl Integration**: Real queries to Ensembl REST API for gene metadata
-- 🔄 **Coordinate Liftover**: Prototype implementation using simplified coordinate transformation
-- 🔄 **Conflict Resolution**: K-means clustering for annotation grouping (real implementation)
-- 📋 **Validation Framework**: Testing against known NCBI coordinate pairs
+-  **API Framework**: Fully functional FastAPI application with proper routing
+-  **Job Management**: Background task processing with status tracking
+-  **Data Export**: Multi-format export with appropriate headers
+-  **Live Ensembl Integration**: Real queries to Ensembl REST API for gene metadata
+- **Coordinate Liftover**: Prototype implementation using simplified coordinate transformation
+-  **Conflict Resolution**: K-means clustering for annotation grouping (real implementation)
+-  **Validation Framework**: Testing against known NCBI coordinate pairs
 
 ## Features
 - Real-time gene annotation lookup via Ensembl REST API
