@@ -642,3 +642,213 @@ async def get_validation_report():
         "report": validator.generate_validation_report(),
         "disclaimer": "This is a prototype implementation. Production use requires validation against comprehensive test suites."
     }
+
+from fastapi import FastAPI, HTTPException, UploadFile, File, Body
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
+from pathlib import Path
+import os, io, csv, json
+import logging
+
+# Local modules
+from .liftover_service import LiftoverManager
+from .conflict_resolution import resolve_annotation_conflicts
+from .ai_resolver import AIResolver
+from .embeddings import SequenceEmbeddingBackend
+from .semantic_context import ingest_annotation_embeddings, cluster_annotations, flag_outliers, suggest_merges, VECTOR_STORE
+from .rl_agent import AnnotationEnv  # train_agent is in rl_agent.py for offline use
+
+ROOT = Path(__file__).parent.parent
+CHAIN_DIR = os.environ.get("LIFTOVER_CHAIN_DIR", str(ROOT / "data" / "chains"))
+
+app = FastAPI(title="Genomic Annotation Version Controllers (Full)")
+
+# Singletons / managers
+liftover_mgr = LiftoverManager(chain_dir=CHAIN_DIR)
+ai_resolver = AIResolver(preload_models=["sbert"])
+embed_backend = SequenceEmbeddingBackend()
+
+# Serve frontend static
+frontend_path = ROOT / "frontend"
+if frontend_path.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+
+class SingleRequest(BaseModel):
+    chrom: str
+    pos: int
+    strand: Optional[str] = "+"
+    build_from: Optional[str] = "hg19"
+    build_to: Optional[str] = "hg38"
+    fallback_to_ucsc: Optional[bool] = False
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    index_file = ROOT / "frontend" / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    return HTMLResponse("<html><body><h3>No frontend found</h3></body></html>")
+
+# --- Liftover endpoints -------------------------------------------------
+@app.post("/api/liftover/single")
+async def liftover_single(req: SingleRequest):
+    try:
+        result = liftover_mgr.liftover_single(req.chrom, req.pos, req.build_from, req.build_to, req.strand, fallback_to_ucsc=req.fallback_to_ucsc)
+        return JSONResponse(content=result.dict())
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.exception("Liftover error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/liftover/batch")
+async def liftover_batch(file: UploadFile = File(...), build_from: str = "hg19", build_to: str = "hg38", fallback_to_ucsc: bool = False):
+    text = (await file.read()).decode("utf-8")
+    sniffer = csv.Sniffer()
+    try:
+        dialect = sniffer.sniff(text[:4096])
+    except Exception:
+        dialect = csv.excel
+    reader = csv.reader(io.StringIO(text), dialect)
+    rows = list(reader)
+    if not rows:
+        return JSONResponse(content={"results": []})
+    header = rows[0]
+    start = 1
+    has_header = False
+    if any(h.lower() in ("chrom", "chr") for h in header) and any(h.lower() == "pos" for h in header):
+        has_header = True
+    if not has_header:
+        start = 0
+    results = []
+    for r in rows[start:]:
+        try:
+            chrom = r[0]
+            pos = int(r[1])
+        except Exception:
+            continue
+        try:
+            lr = liftover_mgr.liftover_single(chrom, pos, build_from, build_to, "+", fallback_to_ucsc=fallback_to_ucsc)
+            results.append(lr.dict())
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    return JSONResponse(content={"results": results})
+
+# --- Deterministic conflict resolver -----------------------------------
+@app.post("/api/conflict/resolve_demo")
+async def conflict_resolve(payload: Dict[str, Any] = Body(...)):
+    annotations = payload.get("annotations", [])
+    source_priority = payload.get("source_priority", None)
+    if not isinstance(annotations, list):
+        raise HTTPException(status_code=400, detail="annotations must be a list")
+    out = resolve_annotation_conflicts(annotations, source_priority=source_priority)
+    return JSONResponse(content=out)
+
+# --- AI semantic resolver -----------------------------------------------
+@app.post("/api/conflict/ai_resolve")
+async def ai_conflict_resolve(payload: Dict[str, Any] = Body(...)):
+    annotations = payload.get("annotations", [])
+    model = payload.get("model", "sbert")
+    sim_threshold = float(payload.get("sim_threshold", 0.80))
+    prefer_sbert = bool(payload.get("prefer_sbert", True))
+    if not isinstance(annotations, list):
+        raise HTTPException(status_code=400, detail="annotations must be a list")
+    try:
+        out = ai_resolver.resolve(annotations, model_name=model, sim_threshold=sim_threshold, prefer_sbert=prefer_sbert)
+        return JSONResponse(content=out)
+    except Exception as e:
+        logging.exception("AI resolve error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Embedding / Vector APIs --------------------------------------------
+@app.post("/api/embeddings/ingest")
+async def api_ingest_annotations(payload: Dict[str, Any] = Body(...)):
+    annotations = payload.get("annotations", [])
+    version = payload.get("version", "default")
+    model_key = payload.get("model_key", "sbert")
+    seq_type = payload.get("seq_type", "text")
+    if not annotations:
+        raise HTTPException(status_code=400, detail="annotations empty")
+    ids = ingest_annotation_embeddings(annotations, version, model_key=model_key, seq_type=seq_type)
+    return JSONResponse(content={"ingested_ids": ids})
+
+@app.post("/api/embeddings/search")
+async def api_search(payload: Dict[str, Any] = Body(...)):
+    q = payload.get("query", "")
+    model_key = payload.get("model_key", "sbert")
+    version = payload.get("version", None)
+    top_k = int(payload.get("top_k", 10))
+    seq_type = payload.get("seq_type", "text")
+    if seq_type == "protein":
+        emb = embed_backend.embed_proteins([q], model_key=model_key)
+    elif seq_type == "dna":
+        emb = embed_backend.embed_dna([q], model_key=model_key)
+    else:
+        emb = embed_backend.embed_texts_sbert([q], model_key=model_key)
+    res = VECTOR_STORE.search(emb[0], top_k=top_k, version=version)
+    return JSONResponse(content={"results": res})
+
+@app.post("/api/embeddings/cluster")
+async def api_cluster(payload: Dict[str, Any] = Body(...)):
+    version = payload.get("version")
+    if not version:
+        raise HTTPException(status_code=400, detail="version required")
+    method = payload.get("method", "hdbscan")
+    out = cluster_annotations(version, method=method)
+    return JSONResponse(content=out)
+
+@app.post("/api/embeddings/outliers")
+async def api_outliers(payload: Dict[str, Any] = Body(...)):
+    version = payload.get("version")
+    if not version:
+        raise HTTPException(status_code=400, detail="version required")
+    out = flag_outliers(version)
+    return JSONResponse(content={"outliers": out})
+
+@app.post("/api/embeddings/suggest_merges")
+async def api_suggest_merges(payload: Dict[str, Any] = Body(...)):
+    version = payload.get("version")
+    if not version:
+        raise HTTPException(status_code=400, detail="version required")
+    out = suggest_merges(version, top_k=int(payload.get("top_k", 8)), sim_threshold=float(payload.get("sim_threshold", 0.85)))
+    return JSONResponse(content={"suggestions": out})
+
+# --- RL endpoints (scaffold) --------------------------------------------
+@app.post("/api/rl/propose_action")
+async def api_rl_propose(payload: Dict[str, Any] = Body(...)):
+    embeddings = payload.get("embeddings")
+    evidence_scores = payload.get("evidence_scores", [])
+    annotation_ids = payload.get("annotation_ids", [])
+    if not embeddings or not annotation_ids:
+        raise HTTPException(status_code=400, detail="embeddings and annotation_ids required")
+    import numpy as np
+    X = np.array(embeddings, dtype='float32')
+    env = AnnotationEnv(X, evidence_scores, annotation_ids)
+    # fallback heuristic if no model saved
+    from sklearn.metrics.pairwise import cosine_similarity
+    sim = cosine_similarity(X)
+    n = sim.shape[0]
+    best_score = -1.0
+    best_pair = (0, 1)
+    for i in range(n):
+        for j in range(i+1, n):
+            if sim[i,j] > best_score:
+                best_score = sim[i,j]
+                best_pair = (i,j)
+    return JSONResponse(content={"proposed_action": f"merge_{best_pair[0]}_{best_pair[1]}", "score": float(best_score)})
+
+@app.post("/api/rl/feedback")
+async def api_rl_feedback(payload: Dict[str, Any] = Body(...)):
+    out_path = "app/model_data/rl_feedback.jsonl"
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    entry = {"action_id": payload.get("action_id"), "reward": float(payload.get("reward", 0.0)), "annotation_ids": payload.get("annotation_ids", []), "notes": payload.get("notes", "")}
+    with open(out_path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+    return JSONResponse(content={"status": "ok"})
+
+@app.post("/api/rl/train")
+async def api_rl_train(payload: Dict[str, Any] = Body(...)):
+    total = int(payload.get("total_timesteps", 10000))
+    save_path = payload.get("save_path", "app/model_data/rl_agent.zip")
+    return JSONResponse(content={"status": "scheduled", "note": "Run train_agent(env_creator, total_timesteps, save_path) on a separate worker or CLI. See app/rl_agent.py"})
