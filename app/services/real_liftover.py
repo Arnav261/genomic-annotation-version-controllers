@@ -31,11 +31,11 @@ class RealLiftoverService:
         self.chain_dir.mkdir(parents=True, exist_ok=True)
         self.lifters = {}  # Cache LiftOver objects
         
-        # UCSC chain file URLs
         self.chain_urls = {
-            "hg19ToHg38": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz",
-            "hg38ToHg19": "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz",
-        }
+    "hg19Tohg38": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz",
+    "hg38Tohg19": "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz",
+}
+
         
         if not HAS_PYLIFTOVER:
             logger.error("pyliftover not installed! Install with: pip install pyliftover")
