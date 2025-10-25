@@ -64,7 +64,14 @@ class RealLiftoverService:
     def _download_chain_file(self, chain_key: str) -> Path:
         """Download chain file from UCSC if not present"""
         if chain_key not in self.chain_urls:
-            raise ValueError(f"No URL configured for chain: {chain_key}")
+            # Try to see if local file exists in chain_dir
+            local_chain = self.chain_dir / f"{chain_key}.over.chain"
+            if local_chain.exists():
+                logger.info(f"Using local chain file: {local_chain}")
+                return local_chain
+            
+            else:
+                raise ValueError(f"No URL configured for chain: {chain_key} and no local file found at {local_chain}")
         
         url = self.chain_urls[chain_key]
         gz_path = self.chain_dir / f"{chain_key}.over.chain.gz"
