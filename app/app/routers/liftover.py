@@ -2,7 +2,9 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 
 router = APIRouter()
-
+LIFTOVER_CHAINS = {
+    "hg19Tohg38": "/Users/admin/Documents/liftOverChains/hg19ToHg38.over.chain.gz"
+}
 @router.get("/")
 async def liftover_info():
     """Liftover router information"""
