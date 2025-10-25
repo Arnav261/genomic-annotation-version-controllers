@@ -3,7 +3,7 @@ from typing import List, Dict
 
 router = APIRouter()
 LIFTOVER_CHAINS = {
-    "hg19Tohg38": "/Users/admin/Documents/liftOverChains/hg19ToHg38.over.chain.gz"
+    "hg19Tohg38": "http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz"
 }
 @router.get("/")
 async def liftover_info():
