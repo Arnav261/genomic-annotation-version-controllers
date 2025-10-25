@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Data / caches
+app/model_data/
+app/model_cache/
+model_cache/
+app/data/chains/
+*.ckpt
+*.pt
+*.bin
+
+# Git
+.git
+.gitignore
