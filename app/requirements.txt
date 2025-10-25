@@ -16,7 +16,8 @@ pandas==2.1.4
 biopython==1.81
 openpyxl==3.1.0
 fuzzywuzzy==0.18.0
-python-Levenshtein==0.21.0
+python-Levenshtein
+rapidfuzz
 
 pytest==7.4.3
 pytest-asyncio==0.21.1
