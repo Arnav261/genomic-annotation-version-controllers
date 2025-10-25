@@ -28,3 +28,20 @@ services:
     autoDeploy: true
     healthCheckPath: /ping
 
+
+services:
+  - type: web
+    name: genomic-annotation-api
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: production
+      - key: CORS_ALLOW_ORIGINS
+        value: "*"
+      - key: PORT
+        value: "8000"
