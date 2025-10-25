@@ -28,7 +28,6 @@ mypy==1.5.0
 pyliftover==0.4
 transformers==4.35.2
 torch
-scikit-learn==1.2.0
 numpy==1.26.2
 sentence-transformers==2.2.2
 faiss-cpu==1.7.4
