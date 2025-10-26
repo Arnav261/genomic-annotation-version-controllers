@@ -294,8 +294,8 @@ def landing_page():
         <div class="container">
             <!-- Header -->
             <div class="card">
-                <h1>🧬 Genomic Annotation Version Controller</h1>
-                <p style="font-size: 1.2em; color: #666;">Professional Research-Grade Bioinformatics Platform</p>
+                <h1>Genomic Annotation Version Controller</h1>
+                <p style="font-size: 1.2em; color: #666;">Research-Grade Bioinformatics Platform</p>
                 
                 <div class="status-bar">
                     <div class="status-item">
