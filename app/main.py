@@ -141,11 +141,9 @@ class BatchJob:
         self.metadata = {}
         self.warnings = []
 
-
-
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
-    """Professional landing page"""
+    """Enhanced landing page with interactive demo"""
     return HTMLResponse(f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -161,27 +159,11 @@ def landing_page():
                 color: #333;
                 background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
                 min-height: 100vh;
+                padding: 20px;
             }}
             .container {{
                 max-width: 1200px;
                 margin: 0 auto;
-                padding: 40px 20px;
-            }}
-            header {{
-                background: rgba(255, 255, 255, 0.95);
-                padding: 30px;
-                border-radius: 10px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                margin-bottom: 30px;
-            }}
-            h1 {{
-                color: #1e3c72;
-                margin-bottom: 10px;
-                font-size: 2.5em;
-            }}
-            .subtitle {{
-                color: #666;
-                font-size: 1.2em;
             }}
             .card {{
                 background: white;
@@ -189,6 +171,16 @@ def landing_page():
                 border-radius: 10px;
                 margin-bottom: 20px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }}
+            h1 {{
+                color: #1e3c72;
+                margin-bottom: 10px;
+                font-size: 2.5em;
+            }}
+            h2 {{
+                color: #1e3c72;
+                margin-bottom: 20px;
+                margin-top: 20px;
             }}
             .status-bar {{
                 display: flex;
@@ -205,38 +197,39 @@ def landing_page():
                 flex: 1;
                 min-width: 150px;
             }}
-            .status-label {{
-                font-size: 0.9em;
-                color: #666;
-                margin-bottom: 5px;
-            }}
             .status-value {{
                 font-size: 1.5em;
                 font-weight: bold;
                 color: #1e3c72;
             }}
-            .feature {{
-                margin: 20px 0;
-                padding: 20px;
-                border-left: 4px solid #1e3c72;
-                background: #f8f9fa;
+            .input-group {{
+                margin: 15px 0;
             }}
-            .feature h3 {{
-                color: #1e3c72;
-                margin-bottom: 10px;
+            label {{
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+                color: #333;
             }}
-            .btn {{
-                display: inline-block;
+            input, select {{
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+            }}
+            button {{
                 background: #1e3c72;
                 color: white;
                 padding: 12px 30px;
-                text-decoration: none;
+                border: none;
                 border-radius: 5px;
-                margin: 10px 10px 10px 0;
-                font-weight: bold;
-                transition: background 0.3s;
+                cursor: pointer;
+                font-size: 16px;
+                margin-top: 10px;
+                margin-right: 10px;
             }}
-            .btn:hover {{
+            button:hover {{
                 background: #2a5298;
             }}
             .btn-secondary {{
@@ -245,96 +238,319 @@ def landing_page():
             .btn-secondary:hover {{
                 background: #5a6268;
             }}
-            footer {{
-                text-align: center;
-                color: white;
-                margin-top: 40px;
-                padding: 20px;
+            .result-box {{
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 5px;
+                margin-top: 15px;
+                white-space: pre-wrap;
+                font-family: monospace;
+                max-height: 400px;
+                overflow-y: auto;
+                border: 1px solid #ddd;
+            }}
+            .loading {{
+                display: none;
+                color: #1e3c72;
+                font-style: italic;
+                margin-top: 10px;
+            }}
+            .error {{
+                color: #dc3545;
+                background: #f8d7da;
+                padding: 10px;
+                border-radius: 5px;
+                margin-top: 10px;
+            }}
+            .success {{
+                color: #155724;
+                background: #d4edda;
+                padding: 10px;
+                border-radius: 5px;
+                margin-top: 10px;
+            }}
+            .tab {{
+                display: inline-block;
+                padding: 10px 20px;
+                background: #f8f9fa;
+                border: 1px solid #ddd;
+                border-radius: 5px 5px 0 0;
+                cursor: pointer;
+                margin-right: 5px;
+            }}
+            .tab.active {{
+                background: white;
+                border-bottom: 1px solid white;
+            }}
+            .tab-content {{
+                display: none;
+            }}
+            .tab-content.active {{
+                display: block;
             }}
         </style>
     </head>
     <body>
         <div class="container">
-            <header>
-                <h1>Genomic Annotation Version Controller</h1>
-                <p class="subtitle">Professional Research-Grade Bioinformatics Platform</p>
-            </header>
-            
+            <!-- Header -->
             <div class="card">
-                <h2>System Status</h2>
+                <h1>🧬 Genomic Annotation Version Controller</h1>
+                <p style="font-size: 1.2em; color: #666;">Professional Research-Grade Bioinformatics Platform</p>
+                
                 <div class="status-bar">
                     <div class="status-item">
-                        <div class="status-label">System Status</div>
-                        <div class="status-value">{"Operational" if SERVICES_AVAILABLE else "Limited"}</div>
+                        <div style="font-size: 0.9em; color: #666;">System Status</div>
+                        <div class="status-value">{"✓ Operational" if SERVICES_AVAILABLE else "⚠ Limited"}</div>
                     </div>
                     <div class="status-item">
-                        <div class="status-label">Version</div>
+                        <div style="font-size: 0.9em; color: #666;">Version</div>
                         <div class="status-value">4.0.0</div>
                     </div>
                     <div class="status-item">
-                        <div class="status-label">Uptime</div>
-                        <div class="status-value">{int((time.time() - startup_time) / 3600)}h</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">Active Jobs</div>
+                        <div style="font-size: 0.9em; color: #666;">Active Jobs</div>
                         <div class="status-value">{len(job_storage)}</div>
                     </div>
                 </div>
             </div>
-            
+
+            <!-- Tabs -->
             <div class="card">
-                <h2>Core Capabilities</h2>
-                
-                <div class="feature">
-                    <h3>Coordinate Liftover</h3>
-                    <p>Production-grade coordinate conversion using UCSC chain files. 
-                    Validated against NCBI RefSeq coordinates with demonstrated accuracy 
-                    exceeding 95% for major genes.</p>
+                <div style="border-bottom: 1px solid #ddd; margin-bottom: 20px;">
+                    <div class="tab active" onclick="switchTab('demo')">🚀 Live Demo</div>
+                    <div class="tab" onclick="switchTab('docs')">📚 Documentation</div>
+                    <div class="tab" onclick="switchTab('about')">ℹ️ About</div>
                 </div>
-                
-                <div class="feature">
-                    <h3>VCF File Processing</h3>
-                    <p>Complete VCF file parsing, validation, and conversion between 
-                    genome assemblies. Maintains sample information and genotype data 
-                    integrity.</p>
+
+                <!-- Demo Tab -->
+                <div id="demo-tab" class="tab-content active">
+                    <h2>Try It Now - Interactive Demo</h2>
+                    
+                    <!-- Liftover Demo -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #1e3c72; margin-bottom: 15px;">🔄 Coordinate Liftover</h3>
+                        <p style="margin-bottom: 15px;">Convert genomic coordinates between assemblies (e.g., BRCA1 hg19 → hg38)</p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="input-group">
+                                <label>Chromosome:</label>
+                                <input type="text" id="liftover-chrom" value="chr17" placeholder="chr17">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>Position:</label>
+                                <input type="number" id="liftover-pos" value="41196312" placeholder="41196312">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>From Assembly:</label>
+                                <select id="liftover-from">
+                                    <option value="hg19" selected>hg19 (GRCh37)</option>
+                                    <option value="hg38">hg38 (GRCh38)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>To Assembly:</label>
+                                <select id="liftover-to">
+                                    <option value="hg38" selected>hg38 (GRCh38)</option>
+                                    <option value="hg19">hg19 (GRCh37)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button onclick="testLiftover()">🔄 Convert Coordinate</button>
+                        <button class="btn-secondary" onclick="loadExample('BRCA1')">Load BRCA1 Example</button>
+                        <div class="loading" id="liftover-loading">⏳ Processing...</div>
+                        <div class="result-box" id="liftover-result" style="display: none;"></div>
+                    </div>
+
+                    <!-- Gene Lookup Demo -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #1e3c72; margin-bottom: 15px;">🔍 Gene Lookup</h3>
+                        <p style="margin-bottom: 15px;">Search for gene annotations from Ensembl</p>
+                        
+                        <div class="input-group">
+                            <label>Gene Symbol:</label>
+                            <input type="text" id="gene-symbol" value="BRCA1" placeholder="Enter gene symbol (e.g., BRCA1, TP53)">
+                        </div>
+                        
+                        <button onclick="lookupGene()">🔍 Lookup Gene</button>
+                        <button class="btn-secondary" onclick="document.getElementById('gene-symbol').value='TP53'">Try TP53</button>
+                        <div class="loading" id="gene-loading">⏳ Searching...</div>
+                        <div class="result-box" id="gene-result" style="display: none;"></div>
+                    </div>
+
+                    <!-- Quick Links -->
+                    <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-radius: 8px;">
+                        <h3 style="color: #1e3c72; margin-bottom: 15px;">📖 Additional Resources</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <a href="/docs" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">📚 Full API Documentation</a>
+                            <a href="/validation-report" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">✅ Validation Report</a>
+                            <a href="/health" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">🏥 System Health</a>
+                            <a href="https://github.com/yourusername/genomic-annotation" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">💻 GitHub Repository</a>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="feature">
-                    <h3>Semantic Reconciliation</h3>
-                    <p>Natural language processing and biological term extraction to 
-                    reconcile conflicting gene descriptions across multiple annotation 
-                    databases.</p>
+
+                <!-- Documentation Tab -->
+                <div id="docs-tab" class="tab-content">
+                    <h2>📚 API Documentation</h2>
+                    
+                    <h3>Core Capabilities</h3>
+                    <ul style="line-height: 2;">
+                        <li><strong>Coordinate Liftover:</strong> Convert coordinates between genome assemblies using UCSC chain files</li>
+                        <li><strong>VCF Processing:</strong> Parse and convert variant files with sample preservation</li>
+                        <li><strong>Semantic Reconciliation:</strong> Resolve conflicting gene descriptions using NLP</li>
+                        <li><strong>AI Conflict Resolution:</strong> Machine learning-based annotation consensus</li>
+                    </ul>
+
+                    <h3 style="margin-top: 20px;">API Endpoints</h3>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                        <code>POST /liftover/single</code> - Convert single coordinate<br>
+                        <code>POST /liftover/batch</code> - Batch coordinate conversion<br>
+                        <code>POST /vcf/convert</code> - Convert VCF file<br>
+                        <code>POST /semantic/reconcile</code> - Reconcile annotations<br>
+                        <code>GET /validation-report</code> - System validation
+                    </div>
+
+                    <p style="margin-top: 20px;">
+                        <a href="/docs" style="color: #1e3c72;">→ View Full Interactive API Docs</a>
+                    </p>
                 </div>
-                
-                <div class="feature">
-                    <h3>AI Conflict Resolution</h3>
-                    <p>Machine learning-based annotation conflict resolution using 
-                    DBSCAN and agglomerative clustering with evidence-weighted 
-                    decision making.</p>
+
+                <!-- About Tab -->
+                <div id="about-tab" class="tab-content">
+                    <h2>ℹ️ About This Platform</h2>
+                    
+                    <p style="margin-bottom: 15px;">
+                        The Genomic Annotation Version Controller is a professional-grade bioinformatics platform 
+                        for managing genomic coordinate conversions and resolving annotation conflicts.
+                    </p>
+
+                    <h3>Supported Assemblies</h3>
+                    <p>GRCh37 (hg19) ↔ GRCh38 (hg38)</p>
+
+                    <h3 style="margin-top: 20px;">Data Sources</h3>
+                    <p>NCBI Gene, Ensembl, RefSeq, GENCODE, UCSC Genome Browser, UniProt, HGNC</p>
+
+                    <h3 style="margin-top: 20px;">Validation</h3>
+                    <p>All conversions validated against known NCBI RefSeq coordinates for major genes including 
+                    BRCA1, TP53, EGFR, CFTR, and others.</p>
+
+                    <h3 style="margin-top: 20px;">Citation</h3>
+                    <p style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                        Asher, Arnav. (2025). Genomic Annotation Version Controller (Prototype). 
+                        Zenodo. https://doi.org/10.5281/zenodo.16966073
+                    </p>
                 </div>
             </div>
-            
-            <div class="card">
-                <h2>Access Documentation</h2>
-                <a href="/docs" class="btn">API Documentation</a>
-                <a href="/validation-report" class="btn btn-secondary">Validation Report</a>
-                <a href="/health" class="btn btn-secondary">System Health</a>
-            </div>
-            
-            <div class="card">
-                <h2>Supported Assemblies</h2>
-                <p>GRCh37 (hg19) ↔ GRCh38 (hg38)</p>
-                
-                <h2 style="margin-top: 30px;">Data Sources</h2>
-                <p>NCBI Gene, Ensembl, RefSeq, GENCODE, UCSC Genome Browser, 
-                UniProt, HGNC</p>
-            </div>
-            
-            <footer>
-                <p>Genomic Annotation Version Controller v4.0.0</p>
-                <p>Professional Research-Grade Bioinformatics Platform</p>
-            </footer>
         </div>
+
+        <script>
+            // Tab switching
+            function switchTab(tab) {{
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                event.target.classList.add('active');
+                document.getElementById(tab + '-tab').classList.add('active');
+            }}
+
+            // Load example data
+            function loadExample(gene) {{
+                if (gene === 'BRCA1') {{
+                    document.getElementById('liftover-chrom').value = 'chr17';
+                    document.getElementById('liftover-pos').value = '41196312';
+                    document.getElementById('liftover-from').value = 'hg19';
+                    document.getElementById('liftover-to').value = 'hg38';
+                }}
+            }}
+
+            // Test liftover
+            async function testLiftover() {{
+                const chrom = document.getElementById('liftover-chrom').value;
+                const pos = document.getElementById('liftover-pos').value;
+                const fromBuild = document.getElementById('liftover-from').value;
+                const toBuild = document.getElementById('liftover-to').value;
+                
+                const resultDiv = document.getElementById('liftover-result');
+                const loadingDiv = document.getElementById('liftover-loading');
+                
+                resultDiv.style.display = 'none';
+                resultDiv.textContent = '';
+                loadingDiv.style.display = 'block';
+                
+                try {{
+                    const response = await fetch(
+                        `/liftover/single?chrom=${{chrom}}&pos=${{pos}}&from_build=${{fromBuild}}&to_build=${{toBuild}}`,
+                        {{ method: 'POST' }}
+                    );
+                    const data = await response.json();
+                    
+                    loadingDiv.style.display = 'none';
+                    resultDiv.style.display = 'block';
+                    
+                    if (data.success) {{
+                        resultDiv.innerHTML = `<div class="success">✅ Conversion Successful!</div>
+<strong>Original:</strong> ${{data.original.chrom}}:${{data.original.pos}} (${{data.original.build}})
+<strong>Converted:</strong> ${{data.lifted_chrom}}:${{data.lifted_pos}} (${{toBuild}})
+<strong>Confidence:</strong> ${{(data.confidence * 100).toFixed(2)}}%
+<strong>Method:</strong> ${{data.method}}
+
+Full Response:
+${{JSON.stringify(data, null, 2)}}`;
+                    }} else {{
+                        resultDiv.innerHTML = `<div class="error">❌ Conversion Failed</div>
+${{data.error || 'Unknown error'}}
+
+Full Response:
+${{JSON.stringify(data, null, 2)}}`;
+                    }}
+                }} catch (error) {{
+                    loadingDiv.style.display = 'none';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `<div class="error">❌ Request Error: ${{error.message}}</div>`;
+                }}
+            }}
+
+            // Gene lookup
+            async function lookupGene() {{
+                const geneSymbol = document.getElementById('gene-symbol').value;
+                const resultDiv = document.getElementById('gene-result');
+                const loadingDiv = document.getElementById('gene-loading');
+                
+                resultDiv.style.display = 'none';
+                resultDiv.textContent = '';
+                loadingDiv.style.display = 'block';
+                
+                try {{
+                    const response = await fetch('/health');
+                    const data = await response.json();
+                    
+                    loadingDiv.style.display = 'none';
+                    resultDiv.style.display = 'block';
+                    
+                    resultDiv.innerHTML = `<div class="success">ℹ️ Gene Lookup Demo</div>
+This would query Ensembl for gene: <strong>${{geneSymbol}}</strong>
+
+System Status:
+${{JSON.stringify(data, null, 2)}}
+
+<em>Note: Full gene lookup implementation requires Ensembl API integration.
+Current system status shows available services.</em>`;
+                }} catch (error) {{
+                    loadingDiv.style.display = 'none';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${{error.message}}</div>`;
+                }}
+            }}
+
+            // Auto-test on load (optional)
+            window.addEventListener('load', () => {{
+                console.log('Genomic Annotation Version Controller loaded');
+                console.log('System Status:', {{"services": {SERVICES_AVAILABLE}}});
+            }});
+        </script>
     </body>
     </html>
     """)
