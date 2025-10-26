@@ -886,7 +886,7 @@ def get_job_status(job_id: str):
 @app.get("/export/{job_id}/{format}")
 def export_job_results(
     job_id: str,
-    format: str = Path(..., regex="^(json|csv)$", description="Export format")
+    format: str = Path(..., pattern="^(json|csv)$", description="Export format")
 ):
     """
     Export job results in specified format.
