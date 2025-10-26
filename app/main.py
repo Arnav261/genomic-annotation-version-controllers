@@ -356,6 +356,284 @@ def health_check():
         ]
     }
 
+@app.get("/demo", response_class=HTMLResponse)
+def demo_interface():
+    """Interactive demo interface"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Interactive Demo - Genomic Annotation Version Controller</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .container {
+                max-width: 1000px;
+                margin: 0 auto;
+            }
+            .card {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            h1, h2 { color: #1e3c72; margin-bottom: 20px; }
+            .demo-section {
+                margin: 30px 0;
+                padding: 20px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+            .input-group {
+                margin: 15px 0;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+                color: #333;
+            }
+            input, select, textarea {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            button {
+                background: #1e3c72;
+                color: white;
+                padding: 12px 30px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 16px;
+                margin-top: 10px;
+            }
+            button:hover {
+                background: #2a5298;
+            }
+            .result-box {
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 5px;
+                margin-top: 15px;
+                white-space: pre-wrap;
+                font-family: monospace;
+                max-height: 400px;
+                overflow-y: auto;
+            }
+            .loading {
+                display: none;
+                color: #1e3c72;
+                font-style: italic;
+            }
+            .error {
+                color: #dc3545;
+                background: #f8d7da;
+                padding: 10px;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            .success {
+                color: #155724;
+                background: #d4edda;
+                padding: 10px;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="card">
+                <h1>Interactive Demo</h1>
+                <p>Test the Genomic Annotation Version Controller API in real-time.</p>
+            </div>
+
+            <!-- Single Coordinate Liftover -->
+            <div class="card">
+                <div class="demo-section">
+                    <h2>1. Single Coordinate Liftover</h2>
+                    <p>Convert a single genomic coordinate between assemblies.</p>
+                    
+                    <div class="input-group">
+                        <label>Chromosome:</label>
+                        <input type="text" id="liftover-chrom" value="chr17" placeholder="chr17">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Position:</label>
+                        <input type="number" id="liftover-pos" value="41196312" placeholder="41196312">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>From Assembly:</label>
+                        <select id="liftover-from">
+                            <option value="hg19">hg19 (GRCh37)</option>
+                            <option value="hg38">hg38 (GRCh38)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>To Assembly:</label>
+                        <select id="liftover-to">
+                            <option value="hg38">hg38 (GRCh38)</option>
+                            <option value="hg19">hg19 (GRCh37)</option>
+                        </select>
+                    </div>
+                    
+                    <button onclick="testLiftover()">Convert Coordinate</button>
+                    <div class="loading" id="liftover-loading">Processing...</div>
+                    <div class="result-box" id="liftover-result"></div>
+                </div>
+            </div>
+
+            <!-- Validation Report -->
+            <div class="card">
+                <div class="demo-section">
+                    <h2>2. System Validation Report</h2>
+                    <p>View accuracy validation against NCBI RefSeq coordinates.</p>
+                    
+                    <button onclick="getValidation()">Get Validation Report</button>
+                    <div class="loading" id="validation-loading">Loading...</div>
+                    <div class="result-box" id="validation-result"></div>
+                </div>
+            </div>
+
+            <!-- Batch Liftover -->
+            <div class="card">
+                <div class="demo-section">
+                    <h2>3. Batch Coordinate Conversion</h2>
+                    <p>Convert multiple coordinates at once.</p>
+                    
+                    <div class="input-group">
+                        <label>Coordinates (JSON format):</label>
+                        <textarea id="batch-coords" rows="6">
+[
+  {"chrom": "chr17", "pos": 41196312},
+  {"chrom": "chr7", "pos": 55086725},
+  {"chrom": "chr17", "pos": 7571720}
+]</textarea>
+                    </div>
+                    
+                    <button onclick="testBatchLiftover()">Start Batch Job</button>
+                    <div class="loading" id="batch-loading">Processing...</div>
+                    <div class="result-box" id="batch-result"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <p style="text-align: center; color: #666;">
+                    <strong>Note:</strong> This demo uses live API calls. Results may take a few seconds.
+                    <br>
+                    For full API documentation, visit <a href="/docs" style="color: #1e3c72;">/docs</a>
+                </p>
+            </div>
+        </div>
+
+        <script>
+            async function testLiftover() {
+                const chrom = document.getElementById('liftover-chrom').value;
+                const pos = document.getElementById('liftover-pos').value;
+                const fromBuild = document.getElementById('liftover-from').value;
+                const toBuild = document.getElementById('liftover-to').value;
+                
+                const resultDiv = document.getElementById('liftover-result');
+                const loadingDiv = document.getElementById('liftover-loading');
+                
+                resultDiv.textContent = '';
+                loadingDiv.style.display = 'block';
+                
+                try {
+                    const response = await fetch(
+                        `/liftover/single?chrom=${chrom}&pos=${pos}&from_build=${fromBuild}&to_build=${toBuild}`
+                        , { method: 'POST' }
+                    );
+                    const data = await response.json();
+                    
+                    loadingDiv.style.display = 'none';
+                    
+                    if (data.success) {
+                        resultDiv.innerHTML = `<div class="success">Conversion Successful!</div>`;
+                        resultDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    } else {
+                        resultDiv.innerHTML = `<div class="error">Conversion Failed</div>`;
+                        resultDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    }
+                } catch (error) {
+                    loadingDiv.style.display = 'none';
+                    resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                }
+            }
+
+            async function getValidation() {
+                const resultDiv = document.getElementById('validation-result');
+                const loadingDiv = document.getElementById('validation-loading');
+                
+                resultDiv.textContent = '';
+                loadingDiv.style.display = 'block';
+                
+                try {
+                    const response = await fetch('/validation-report');
+                    const data = await response.json();
+                    
+                    loadingDiv.style.display = 'none';
+                    
+                    resultDiv.innerHTML = `<div class="success">Validation Report Generated</div>`;
+                    resultDiv.innerHTML += `<pre>${data.validation_report}</pre>`;
+                    resultDiv.innerHTML += `<h3>Summary:</h3>`;
+                    resultDiv.innerHTML += `<pre>${JSON.stringify(data.summary, null, 2)}</pre>`;
+                } catch (error) {
+                    loadingDiv.style.display = 'none';
+                    resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                }
+            }
+
+            async function testBatchLiftover() {
+                const coordsText = document.getElementById('batch-coords').value;
+                const resultDiv = document.getElementById('batch-result');
+                const loadingDiv = document.getElementById('batch-loading');
+                
+                resultDiv.textContent = '';
+                loadingDiv.style.display = 'block';
+                
+                try {
+                    const coordinates = JSON.parse(coordsText);
+                    
+                    const response = await fetch('/liftover/batch?from_build=hg19&to_build=hg38', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(coordinates)
+                    });
+                    const data = await response.json();
+                    
+                    loadingDiv.style.display = 'none';
+                    
+                    resultDiv.innerHTML = `<div class="success">Batch Job Started!</div>`;
+                    resultDiv.innerHTML += `<p>Job ID: <strong>${data.job_id}</strong></p>`;
+                    resultDiv.innerHTML += `<p>Check status at: <a href="/job-status/${data.job_id}" target="_blank">/job-status/${data.job_id}</a></p>`;
+                    resultDiv.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } catch (error) {
+                    loadingDiv.style.display = 'none';
+                    resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                }
+            }
+        </script>
+    </body>
+    </html>
+    """)
+
 @app.get("/validation-report")
 def get_validation_report():
     """
