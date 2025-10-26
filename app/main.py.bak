@@ -1,13 +1,14 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Body, Query, Path as FastAPIPath
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query, Path as FastAPIPath
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response, HTMLResponse
+from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse, FileResponse
 from typing import List, Dict, Any, Optional
+import logging.config 
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from pathlib import Path as Pathlib 
 import os, io, csv, json
-import logging.config 
 import threading
 import uuid
 import time
@@ -1167,60 +1168,16 @@ def get_job_status(job_id: str):
     
     return response
 
-# ----- IMPORTS: REPLACE or ENSURE these are present near the top of app/main.py -----
-# Replace your existing fastapi import line with this exact line (copy/paste)
-from fastapi import FastAPI, HTTPException, UploadFile, File, Body, Query, Path as FastAPIPath
-# Also ensure these response helpers are imported (copy/paste if missing)
-from fastapi.responses import JSONResponse, Response
-
-# ----- REPLACE the faulty endpoint shown with this corrected implementation -----
-# Locate the function you showed (the "/export/{job_id}/{format}" endpoint) and replace it
-# with the block below (copy all lines and paste over the old function).
 @app.get("/export/{job_id}/{format}")
 def export_job_results(
     job_id: str,
-    format: str = FastAPIPath(..., regex=r"^(json|csv)$", description="Export format")
+    format: str = Pathlib(..., pattern="^(json|csv)$", description="Export format")
 ):
     """
     Export job results in specified format.
-
+    
     Supported formats: json, csv
-
-    Notes:
-      - 'format' is a path parameter, therefore we use FastAPI's Path helper
-        (aliased as FastAPIPath) with regex validation.
-      - This implementation returns a simple placeholder response. Replace the
-        placeholder logic with your real job-result retrieval and serialization.
     """
-    # --- Retrieve or compute job results (placeholder) ---
-    # Replace the following with real lookup of job results (DB, filesystem, vector store, etc.)
-    # Example placeholder data:
-    results = [
-        {"variant": "chr1:100000A>T", "annotation": "geneX"},
-        {"variant": "chr2:200000G>C", "annotation": "geneY"},
-    ]
-
-    # --- Return JSON response ---
-    if format == "json":
-        return JSONResponse(content={"job_id": job_id, "results": results}, status_code=200)
-
-    # --- Return CSV response ---
-    # Build CSV text from results. Adjust columns/ordering to your real schema.
-    # (Simple CSV builder; for production consider csv module or streaming Response)
-    if format == "csv":
-        # header
-        csv_lines = ["variant,annotation"]
-        for r in results:
-            # escape commas/newlines in values if needed
-            variant = str(r.get("variant", "")).replace("\n", " ").replace(",", ";")
-            ann = str(r.get("annotation", "")).replace("\n", " ").replace(",", ";")
-            csv_lines.append(f"{variant},{ann}")
-        csv_text = "\n".join(csv_lines) + "\n"
-        return Response(content=csv_text, media_type="text/csv", status_code=200)
-
-    # Defensive fallback (should not be reached due to regex validation)
-    raise HTTPException(status_code=400, detail="Unsupported export format")
-
     job = job_storage.get(job_id)
     
     if not job:
