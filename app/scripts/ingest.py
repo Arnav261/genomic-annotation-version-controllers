@@ -9,13 +9,13 @@ Usage:
 """
 import argparse, os, json, csv, sys
 from typing import List, Dict, Any
-from pathlib import Path
+from pathlib import Path as Pathlib
 
-ROOT = Path(__file__).parent.parent
+ROOT = Pathlib(__file__).parent.parent
 import app.semantic_context as sc
 
-def read_input(path: Path) -> List[Dict[str, Any]]:
-    path = Path(path)
+def read_input(path: Pathlib) -> List[Dict[str, Any]]:
+    path = Pathlib(path)
     content = []
     if path.suffix.lower() in (".json", ".jsonl"):
         with open(path, "r") as f:
@@ -78,7 +78,7 @@ def main():
     parser.add_argument("--batch", type=int, default=64)
     args = parser.parse_args()
 
-    records = read_input(Path(args.input))
+    records = read_input(Pathlib(args.input))
     recs = normalize_records(records)
     total = len(recs)
     print(f"Loaded {total} records. Ingesting into version={args.version} seq_type={args.seq_type} model={args.model}")

@@ -5,7 +5,7 @@ Usage:
   python scripts/egest.py --version v1 --out out.csv --embeddings out.npy
 """
 import argparse, os, json, csv
-from pathlib import Path
+from pathlib import Path as Pathlib
 from app.vector_store import FaissVectorStore
 import numpy as np
 

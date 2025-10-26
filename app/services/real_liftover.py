@@ -5,7 +5,7 @@ This actually works with real genomic coordinates!
 import os
 import logging
 from typing import Dict, List, Optional, Tuple
-from pathlib import Path
+from pathlib import Path as Pathlib
 import urllib.request
 import gzip
 import shutil
@@ -27,7 +27,7 @@ class RealLiftoverService:
     """
     
     def __init__(self, chain_dir: str = "./data/chains"):
-        self.chain_dir = Path(chain_dir)
+        self.chain_dir = Pathlib(chain_dir)
         self.chain_dir.mkdir(parents=True, exist_ok=True)
         self.lifters = {}  # Cache LiftOver objects
         
@@ -61,7 +61,7 @@ class RealLiftoverService:
         
         return f"{from_cap}To{to_cap}"
     
-    def _download_chain_file(self, chain_key: str) -> Path:
+    def _download_chain_file(self, chain_key: str) -> Pathlib:
         """Download chain file from UCSC if not present"""
         if chain_key not in self.chain_urls:
             # Try to see if local file exists in chain_dir

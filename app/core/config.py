@@ -1,4 +1,4 @@
-
+from pathlib import Path as Pathlib
 import os
 from pydantic_settings import BaseSettings
 
@@ -18,9 +18,8 @@ settings = Settings()
 Configuration constants and helpers. Edit environment variables in production.
 """
 import os
-from pathlib import Path
 
-ROOT = Path(__file__).parent.parent
+ROOT = Pathlib(__file__).parent.parent
 
 # Where to find UCSC chain files for liftover
 LIFTOVER_CHAIN_DIR = os.environ.get("LIFTOVER_CHAIN_DIR", str(ROOT / "data" / "chains"))

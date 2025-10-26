@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query, Path
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query, Path as FastAPIPath
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse, FileResponse
 from typing import List, Dict, Any, Optional
@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
-from pathlib import Path
+from pathlib import Path as Pathlib 
 import os, io, csv, json
 import threading
 import uuid
@@ -17,7 +17,6 @@ import os
 from datetime import datetime
 import json
 import logging
-from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -1172,7 +1171,7 @@ def get_job_status(job_id: str):
 @app.get("/export/{job_id}/{format}")
 def export_job_results(
     job_id: str,
-    format: str = Path(..., pattern="^(json|csv)$", description="Export format")
+    format: str = Pathlib(..., pattern="^(json|csv)$", description="Export format")
 ):
     """
     Export job results in specified format.
