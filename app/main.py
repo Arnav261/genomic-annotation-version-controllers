@@ -1,6 +1,4 @@
-
-
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse, FileResponse
 from typing import List, Dict, Any, Optional
@@ -888,7 +886,7 @@ def get_job_status(job_id: str):
 @app.get("/export/{job_id}/{format}")
 def export_job_results(
     job_id: str,
-    format: str = Query(..., regex="^(json|csv)$", description="Export format")
+    format: str = Path(..., regex="^(json|csv)$", description="Export format")
 ):
     """
     Export job results in specified format.
