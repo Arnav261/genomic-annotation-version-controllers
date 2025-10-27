@@ -300,7 +300,7 @@ def landing_page():
                 <div class="status-bar">
                     <div class="status-item">
                         <div style="font-size: 0.9em; color: #666;">System Status</div>
-                        <div class="status-value">{"✓ Operational" if SERVICES_AVAILABLE else "⚠ Limited"}</div>
+                        <div class="status-value">{"Operational" if SERVICES_AVAILABLE else "Limited"}</div>
                     </div>
                     <div class="status-item">
                         <div style="font-size: 0.9em; color: #666;">Version</div>
@@ -316,9 +316,9 @@ def landing_page():
             <!-- Tabs -->
             <div class="card">
                 <div style="border-bottom: 1px solid #ddd; margin-bottom: 20px;">
-                    <div class="tab active" onclick="switchTab('demo')">🚀 Live Demo</div>
-                    <div class="tab" onclick="switchTab('docs')">📚 Documentation</div>
-                    <div class="tab" onclick="switchTab('about')">ℹ️ About</div>
+                    <div class="tab active" onclick="switchTab('demo')">Live Demo</div>
+                    <div class="tab" onclick="switchTab('docs')">Documentation</div>
+                    <div class="tab" onclick="switchTab('about')">About</div>
                 </div>
 
                 <!-- Demo Tab -->
@@ -327,8 +327,8 @@ def landing_page():
                     
                     <!-- Liftover Demo -->
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="color: #1e3c72; margin-bottom: 15px;">🔄 Coordinate Liftover</h3>
-                        <p style="margin-bottom: 15px;">Convert genomic coordinates between assemblies (e.g., BRCA1 hg19 → hg38)</p>
+                        <h3 style="color: #1e3c72; margin-bottom: 15px;">Coordinate Liftover</h3>
+                        <p style="margin-bottom: 15px;">Convert genomic coordinates between assemblies (e.g., BRCA1 hg19 to hg38)</p>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div class="input-group">
@@ -358,15 +358,15 @@ def landing_page():
                             </div>
                         </div>
                         
-                        <button onclick="testLiftover()">🔄 Convert Coordinate</button>
+                        <button onclick="testLiftover()">Convert Coordinate</button>
                         <button class="btn-secondary" onclick="loadExample('BRCA1')">Load BRCA1 Example</button>
-                        <div class="loading" id="liftover-loading">⏳ Processing...</div>
+                        <div class="loading" id="liftover-loading">Processing...</div>
                         <div class="result-box" id="liftover-result" style="display: none;"></div>
                     </div>
 
                     <!-- Gene Lookup Demo -->
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="color: #1e3c72; margin-bottom: 15px;">🔍 Gene Lookup</h3>
+                        <h3 style="color: #1e3c72; margin-bottom: 15px;">Gene Lookup</h3>
                         <p style="margin-bottom: 15px;">Search for gene annotations from Ensembl</p>
                         
                         <div class="input-group">
@@ -374,27 +374,27 @@ def landing_page():
                             <input type="text" id="gene-symbol" value="BRCA1" placeholder="Enter gene symbol (e.g., BRCA1, TP53)">
                         </div>
                         
-                        <button onclick="lookupGene()">🔍 Lookup Gene</button>
+                        <button onclick="lookupGene()">Lookup Gene</button>
                         <button class="btn-secondary" onclick="document.getElementById('gene-symbol').value='TP53'">Try TP53</button>
-                        <div class="loading" id="gene-loading">⏳ Searching...</div>
+                        <div class="loading" id="gene-loading">Searching...</div>
                         <div class="result-box" id="gene-result" style="display: none;"></div>
                     </div>
 
                     <!-- Quick Links -->
                     <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-radius: 8px;">
-                        <h3 style="color: #1e3c72; margin-bottom: 15px;">📖 Additional Resources</h3>
+                        <h3 style="color: #1e3c72; margin-bottom: 15px;">Additional Resources</h3>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <a href="/docs" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">📚 Full API Documentation</a>
-                            <a href="/validation-report" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">✅ Validation Report</a>
-                            <a href="/health" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">🏥 System Health</a>
-                            <a href="https://github.com/yourusername/genomic-annotation" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">💻 GitHub Repository</a>
+                            <a href="/docs" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">Full API Documentation</a>
+                            <a href="/validation-report" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">Validation Report</a>
+                            <a href="/health" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">System Health</a>
+                            <a href="https://github.com/yourusername/genomic-annotation" style="color: #1e3c72; text-decoration: none; padding: 10px; background: white; border-radius: 5px; display: block;">GitHub Repository</a>
                         </div>
                     </div>
                 </div>
 
                 <!-- Documentation Tab -->
                 <div id="docs-tab" class="tab-content">
-                    <h2>📚 API Documentation</h2>
+                    <h2>API Documentation</h2>
                     
                     <h3>Core Capabilities</h3>
                     <ul style="line-height: 2;">
@@ -414,13 +414,13 @@ def landing_page():
                     </div>
 
                     <p style="margin-top: 20px;">
-                        <a href="/docs" style="color: #1e3c72;">→ View Full Interactive API Docs</a>
+                        <a href="/docs" style="color: #1e3c72;">View Full Interactive API Docs</a>
                     </p>
                 </div>
 
                 <!-- About Tab -->
                 <div id="about-tab" class="tab-content">
-                    <h2>ℹ️ About This Platform</h2>
+                    <h2>About This Platform</h2>
                     
                     <p style="margin-bottom: 15px;">
                         The Genomic Annotation Version Controller is a professional-grade bioinformatics platform 
@@ -428,7 +428,7 @@ def landing_page():
                     </p>
 
                     <h3>Supported Assemblies</h3>
-                    <p>GRCh37 (hg19) ↔ GRCh38 (hg38)</p>
+                    <p>GRCh37 (hg19) to GRCh38 (hg38)</p>
 
                     <h3 style="margin-top: 20px;">Data Sources</h3>
                     <p>NCBI Gene, Ensembl, RefSeq, GENCODE, UCSC Genome Browser, UniProt, HGNC</p>
@@ -447,7 +447,6 @@ def landing_page():
         </div>
 
         <script>
-            // Tab switching
             function switchTab(tab) {{
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -456,7 +455,6 @@ def landing_page():
                 document.getElementById(tab + '-tab').classList.add('active');
             }}
 
-            // Load example data
             function loadExample(gene) {{
                 if (gene === 'BRCA1') {{
                     document.getElementById('liftover-chrom').value = 'chr17';
@@ -466,7 +464,6 @@ def landing_page():
                 }}
             }}
 
-            // Test liftover
             async function testLiftover() {{
                 const chrom = document.getElementById('liftover-chrom').value;
                 const pos = document.getElementById('liftover-pos').value;
@@ -491,7 +488,7 @@ def landing_page():
                     resultDiv.style.display = 'block';
                     
                     if (data.success) {{
-                        resultDiv.innerHTML = `<div class="success">✅ Conversion Successful!</div>
+                        resultDiv.innerHTML = `<div class="success">Conversion Successful</div>
 <strong>Original:</strong> ${{data.original.chrom}}:${{data.original.pos}} (${{data.original.build}})
 <strong>Converted:</strong> ${{data.lifted_chrom}}:${{data.lifted_pos}} (${{toBuild}})
 <strong>Confidence:</strong> ${{(data.confidence * 100).toFixed(2)}}%
@@ -500,7 +497,7 @@ def landing_page():
 Full Response:
 ${{JSON.stringify(data, null, 2)}}`;
                     }} else {{
-                        resultDiv.innerHTML = `<div class="error">❌ Conversion Failed</div>
+                        resultDiv.innerHTML = `<div class="error">Conversion Failed</div>
 ${{data.error || 'Unknown error'}}
 
 Full Response:
@@ -509,11 +506,10 @@ ${{JSON.stringify(data, null, 2)}}`;
                 }} catch (error) {{
                     loadingDiv.style.display = 'none';
                     resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<div class="error">❌ Request Error: ${{error.message}}</div>`;
+                    resultDiv.innerHTML = `<div class="error">Request Error: ${{error.message}}</div>`;
                 }}
             }}
 
-            // Gene lookup
             async function lookupGene() {{
                 const geneSymbol = document.getElementById('gene-symbol').value;
                 const resultDiv = document.getElementById('gene-result');
@@ -530,7 +526,7 @@ ${{JSON.stringify(data, null, 2)}}`;
                     loadingDiv.style.display = 'none';
                     resultDiv.style.display = 'block';
                     
-                    resultDiv.innerHTML = `<div class="success">ℹ️ Gene Lookup Demo</div>
+                    resultDiv.innerHTML = `<div class="success">Gene Lookup Demo</div>
 This would query Ensembl for gene: <strong>${{geneSymbol}}</strong>
 
 System Status:
@@ -541,11 +537,10 @@ Current system status shows available services.</em>`;
                 }} catch (error) {{
                     loadingDiv.style.display = 'none';
                     resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<div class="error">❌ Error: ${{error.message}}</div>`;
+                    resultDiv.innerHTML = `<div class="error">Error: ${{error.message}}</div>`;
                 }}
             }}
 
-            // Auto-test on load (optional)
             window.addEventListener('load', () => {{
                 console.log('Genomic Annotation Version Controller loaded');
                 console.log('System Status:', {{"services": {SERVICES_AVAILABLE}}});
