@@ -59,7 +59,8 @@ def resolve_annotation_conflicts(annotations: List[Dict[str, Any]], source_prior
 
     counts = {k: int(len(per_value_sources[k])) for k in per_value_sources}
     entropy = compute_entropy(counts)
-    confidence_score = (top_weight / total_weight) if total_weight > 0 else 0.0
+    raw_confidence = (top_weight / total_weight) if total_weight > 0 else 0.0
+    confidence_score = min(max(float(raw_confidence), 0.0), 1.0)
 
     return {
         "consensus_value": top_val,

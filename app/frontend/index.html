@@ -66,53 +66,57 @@
   </div>
 
 <script>
-document.getElementById('run-single').addEventListener('click', async () => {
-  const chrom = document.getElementById('single-chrom').value;
-  const pos = parseInt(document.getElementById('single-pos').value, 10);
-  const from = document.getElementById('single-from').value;
-  const to = document.getElementById('single-to').value;
-  const fallback = document.getElementById('single-fallback').checked;
-  const res = await fetch('/api/liftover/single', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({chrom,pos,build_from:from,build_to:to,fallback_to_ucsc:fallback})});
-  document.getElementById('single-result').innerHTML = `<pre>${JSON.stringify(await res.json(), null, 2)}</pre>`;
-});
-
-document.getElementById('run-batch').addEventListener('click', async () => {
-  const fileEl = document.getElementById('batch-file');
-  const from = document.getElementById('batch-from').value;
-  const to = document.getElementById('batch-to').value;
-  const fallback = document.getElementById('batch-fallback').checked;
-  if (!fileEl.files.length) { alert("Select a file"); return; }
-  const fd = new FormData(); fd.append('file', fileEl.files[0]);
-  const res = await fetch(`/api/liftover/batch?build_from=${encodeURIComponent(from)}&build_to=${encodeURIComponent(to)}&fallback_to_ucsc=${fallback}`, {method:'POST', body: fd});
-  document.getElementById('batch-results').innerHTML = `<pre>${JSON.stringify(await res.json(), null, 2)}</pre>`;
-});
-
-document.getElementById('run-conflict').addEventListener('click', async () => {
-  const anns = JSON.parse(document.getElementById('example-annotations').value);
-  const res = await fetch('/api/conflict/resolve_demo', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({annotations:anns})});
-  document.getElementById('conflict-result').innerHTML = `<pre>${JSON.stringify(await res.json(), null, 2)}</pre>`;
-});
+// Replace the existing run-ai handler with the code below
+function fmtPercent(raw) {
+  if (raw === null || raw === undefined) return "n/a";
+  let v = Number(raw);
+  if (Number.isNaN(v)) return "n/a";
+  // If the server returned e.g. a raw cosine in [-1,1], map to [0,1]
+  if (v < -1 || v > 1) {
+    // if it's >1 and looks like a percent (e.g., 3232397), assume it was an erroneous percent and interpret conservatively
+    // but clamp to 1.0 max
+    v = Math.min(Math.max(v, 0.0), 1.0);
+  } else if (v >= -1 && v <= 1) {
+    // likely a fraction or cosine; if in [-1,1], assume fraction/cosine: map to [0,1] where appropriate
+    // if value is non-negative assume it's already a fraction; if negative treat as 0 fraction
+    if (v < 0) v = 0;
+    // if value is in [0,1], keep as fraction
+  }
+  // Convert fraction to percent and clamp
+  let pct = Math.round(Math.min(Math.max(v, 0.0), 1.0) * 10000) / 100; // 2 decimal places
+  return pct.toFixed(2) + "%";
+}
 
 document.getElementById('run-ai').addEventListener('click', async () => {
-  const anns = JSON.parse(document.getElementById('example-annotations').value);
-  const res = await fetch('/api/conflict/ai_resolve', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({annotations:anns, model:'sbert'})});
-  document.getElementById('conflict-result').innerHTML = `<pre>${JSON.stringify(await res.json(), null, 2)}</pre>`;
-});
-
-document.getElementById('run-ingest').addEventListener('click', async () => {
-  const txt = JSON.parse(document.getElementById('ingest-text').value);
-  const version = document.getElementById('ingest-version').value;
-  const model = document.getElementById('ingest-model').value;
-  const seqtype = document.getElementById('ingest-seqtype').value;
-  const res = await fetch('/api/embeddings/ingest', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({annotations: txt, version, model_key: model, seq_type: seqtype})});
-  document.getElementById('embed-results').innerHTML = `<pre>${JSON.stringify(await res.json(), null, 2)}</pre>`;
-});
-
-document.getElementById('run-search').addEventListener('click', async () => {
-  const q = document.getElementById('search-query').value;
-  const res = await fetch('/api/embeddings/search', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({query:q, model_key:'sbert', top_k:10})});
-  document.getElementById('embed-results').innerHTML = `<pre>${JSON.stringify(await res.json(), null, 2)}</pre>`;
+  let anns;
+  try {
+    anns = JSON.parse(document.getElementById('ai-annotations').value);
+  } catch (e) {
+    alert('Invalid annotations JSON');
+    return;
+  }
+  const model = document.getElementById('ai-model').value;
+  const sim_threshold = parseFloat(document.getElementById('ai-threshold').value);
+  const prefer_sbert = document.getElementById('ai-prefer-sbert').checked;
+  document.getElementById('ai-result').innerText = 'Running (this may take a few seconds while model loads)...';
+  const payload = {annotations: anns, model: model, sim_threshold: sim_threshold, prefer_sbert: prefer_sbert};
+  const res = await fetch('/api/conflict/ai_resolve', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(payload)});
+  const data = await res.json();
+  // pretty print clusters and formatted confidences
+  if (data && data.clusters) {
+    let out = { num_clusters: data.num_clusters, global_entropy: data.global_entropy, consensus: [] };
+    for (const c of data.consensus || []) {
+      out.consensus.push({
+        consensus_value: c.consensus_value,
+        combined_confidence: fmtPercent(c.combined_confidence),
+        cluster_id: c.cluster_id,
+        cluster_size: c.cluster_size,
+        top_sources: c.top_sources
+      });
+    }
+    document.getElementById('ai-result').innerHTML = `<pre>${JSON.stringify(out, null, 2)}</pre>`;
+  } else {
+    document.getElementById('ai-result').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+  }
 });
 </script>
-</body>
-</html>

@@ -1034,43 +1034,65 @@ def compute_entropy(counts: Dict[str, int]) -> float:
         if p > 0:
             ent -= p * math.log2(p)
     return ent
+def _resolve_cluster_votes(self, annotations: List[Dict[str, Any]], indices: List[int]) -> Dict[str, Any]:
+        """
+        Weighted vote within a cluster. Returns consensus and a confidence score in [0,1].
+        Ensures the returned confidence_score is clamped to [0.0, 1.0].
+        """
+        weighted = {}
+        sources = {}
+        total_weight = 0.0
+        for idx in indices:
+            ann = annotations[idx]
+            val = ann.get("value")
+            if val is None:
+                continue
+            # evidence_score may be arbitrary positive number; we aggregate but final confidence is a ratio
+            weight = float(ann.get("evidence_score", 1.0))
+            if weight < 0:
+                # defensively treat negative evidence as 0
+                weight = 0.0
+            src = ann.get("source", "unknown")
+            weighted[val] = weighted.get(val, 0.0) + weight
+            sources.setdefault(val, []).append(src)
+            total_weight += weight
 
-def resolve_annotation_conflicts(annotations: List[Dict[str, Any]], source_priority: List[str]=None) -> Dict[str, Any]:
-    weighted = collections.defaultdict(float)
-    per_value_sources = collections.defaultdict(list)
-    total_weight = 0.0
-    for ann in annotations:
-        val = ann.get("value")
-        if val is None:
-            continue
-        weight = float(ann.get("evidence_score", 1.0))
-        src = ann.get("source", "unknown")
-        weighted[val] += weight
-        per_value_sources[val].append(src)
-        total_weight += weight
+        if not weighted or total_weight <= 0:
+            return {
+                "consensus_value": None,
+                "support_count": 0,
+                "top_sources": [],
+                "weighted_scores": {},
+                "confidence_score": 0.0
+            }
 
-    if not weighted:
-        return {"consensus_value": None, "support_count": 0, "entropy": 0.0, "confidence_score": 0.0, "support_counts": {}}
+        sorted_vals = sorted(weighted.items(), key=lambda kv: (-kv[1], kv[0]))
+        top_val, top_weight = sorted_vals[0]
+        support_count = len(sources.get(top_val, []))
+        # confidence: normalized fraction [0,1]; clamp defensively
+        raw_conf = (top_weight / total_weight) if total_weight > 0 else 0.0
+        confidence_score = min(max(float(raw_conf), 0.0), 1.0)
 
-    sorted_vals = sorted(weighted.items(), key=lambda x: (-x[1], x[0]))
-    top_val, top_weight = sorted_vals[0]
+        return {
+            "consensus_value": top_val,
+            "support_count": support_count,
+            "top_sources": sources.get(top_val, [])[:10],
+            "weighted_scores": weighted,
+            "confidence_score": confidence_score
+        }
 
-    if len(sorted_vals) > 1 and abs(sorted_vals[0][1] - sorted_vals[1][1]) < 1e-9 and source_priority:
-        for s in source_priority:
-            for v, _ in sorted_vals[:3]:
-                if s in per_value_sources.get(v, []):
-                    top_val = v
-                    break
 
-    counts = {k: int(len(per_value_sources[k])) for k in per_value_sources}
-    entropy = compute_entropy(counts)
-    confidence_score = (top_weight / total_weight) if total_weight > 0 else 0.0
+evidence_conf = float(vote.get("confidence_score", 0.0)) if vote.get("confidence_score") is not None else 0.0
+semantic_conf = float(vote.get("cluster_semantic_confidence", 1.0))
+evidence_conf = min(max(evidence_conf, 0.0), 1.0)
+semantic_conf = min(max(semantic_conf, 0.0), 1.0)
+combined_confidence = evidence_conf * semantic_conf
+combined_confidence = min(max(combined_confidence, 0.0), 1.0)
 
-    return {
-        "consensus_value": top_val,
-        "support_count": counts.get(top_val, 0),
-        "top_sources": per_value_sources.get(top_val, [])[:10],
-        "entropy": entropy,
-        "confidence_score": confidence_score,
-        "support_counts": counts
-    }
+overall_consensus.append({
+                "consensus_value": vote["consensus_value"],
+                "combined_confidence": combined_confidence,
+                "cluster_id": vote["cluster_id"],
+                "cluster_size": vote["cluster_size"],
+                "top_sources": vote["top_sources"]
+            })

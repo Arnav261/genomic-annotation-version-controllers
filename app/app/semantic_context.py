@@ -116,9 +116,14 @@ def suggest_merges(version: str, top_k: int = 5, sim_threshold: float = 0.85) ->
                 continue
             v = v / norm
             res = VECTOR_STORE.search(v, top_k=top_k, version=version)
-            close = [r for r in res if r["id"] != uid and r["score"] >= sim_threshold]
-            if close:
-                suggestions.append({"id": uid, "candidates": close})
+            candidates = []
+            for r in res:
+                raw_score = float(r.get("score", 0.0))
+                clamped = min(max(raw_score, -1.0), 1.0)
+                sim_conf = (clamped + 1.0) / 2.0
+                candidates.append({"id": r["id"], "score": clamped, "similarity_confidence": sim_conf, "metadata": r.get("metadata", {})})
+            if candidates:
+                suggestions.append({"id": uid, "candidates": candidates})
         except Exception:
             continue
     return suggestions

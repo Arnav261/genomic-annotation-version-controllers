@@ -69,7 +69,15 @@ class FaissVectorStore:
                 if version and row[0] != version:
                     continue
                 meta = json.loads(row[1]) if row[1] else {}
-                results.append({"id": uid, "score": float(dist), "metadata": meta})
+                raw_score = float(dist)
+                clamped_score = min(max(raw_score, -1.0), 1.0)
+                similarity_confidence = (clamped_score + 1.0) / 2.0
+                results.append({
+                    "id": uid,
+                    "score": clamped_score,                    
+                    "similarity_confidence": similarity_confidence,  
+                    "metadata": meta
+                })
         return results
 
     def get_by_id(self, uid: str) -> Optional[Dict[str, Any]]:
