@@ -1133,3 +1133,368 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+"""
+Main FastAPI application for Genomic Resonance (Genomic Annotation Version Controllers)
+- Wires services: Ensembl liftover (primary), chain-file liftover (fallback), VCF converter
+- Adds API-key middleware, security headers, CORS
+- Provides endpoints for liftover (single/batch/region), VCF convert/validate, job status, report downloads
+- Uses SQLite via SQLAlchemy (app/db.py)
+"""
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, PlainTextResponse, HTMLResponse
+from typing import List, Dict, Any
+from datetime import datetime
+import logging
+import uuid
+import os
+
+# Local imports
+from app.config import settings
+from app.db import SessionLocal, Job, init_db
+from app.api.middleware import APIKeyAuthMiddleware
+from app.services.vcf_converter import VCFConverter
+from app.services.real_liftover import RealLiftover
+from app.services.ensembl_liftover import EnsemblLiftover
+
+# Initialize logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("app.main")
+
+# Create app
+app = FastAPI(title="Genomic Resonance: Liftover & VCF Conversion Service", version="4.0.0")
+
+# CORS - allow common safe origins; override via env if needed
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # change to specific origins in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add API key middleware
+app.add_middleware(APIKeyAuthMiddleware)
+
+
+# Service container
+SERVICES: Dict[str, Any] = {}
+JOB_CACHE: Dict[str, Dict] = {}  # lightweight in-memory mirror for quick reads (DB is authoritative)
+
+
+def _init_services():
+    """
+    Instantiate liftover and vcf converter services.
+    Ensembl liftover uses chain-file liftover as fallback.
+    """
+    # Ensure directories exist
+    os.makedirs(settings.CHAIN_DIR, exist_ok=True)
+    os.makedirs(settings.REF_DIR, exist_ok=True)
+    os.makedirs(settings.MODEL_DIR, exist_ok=True)
+
+    # Instantiate chain-file liftover (RealLiftover uses chain files & pyliftover)
+    try:
+        real_lifter = RealLiftover(chain_dir=str(settings.CHAIN_DIR))
+        SERVICES["chain_liftover"] = real_lifter
+        logger.info("Chain-file liftover (RealLiftover) initialized.")
+    except Exception as e:
+        logger.warning("RealLiftover initialization failed: %s", e)
+        SERVICES["chain_liftover"] = None
+
+    # Ensembl liftover with fallback to chain liftover
+    try:
+        ensembl = EnsemblLiftover(fallback=SERVICES.get("chain_liftover"))
+        SERVICES["ensembl_liftover"] = ensembl
+        SERVICES["liftover"] = ensembl  # default liftover service is Ensembl wrapper
+        logger.info("Ensembl liftover initialized (with local chain fallback).")
+    except Exception as e:
+        logger.error("Ensembl liftover initialization failed: %s", e)
+        # fallback to chain liftover only
+        if SERVICES.get("chain_liftover"):
+            SERVICES["liftover"] = SERVICES["chain_liftover"]
+            logger.info("Using chain-file liftover as primary.")
+        else:
+            SERVICES["liftover"] = None
+
+    # VCF converter
+    if SERVICES.get("liftover"):
+        SERVICES["vcf_converter"] = VCFConverter(SERVICES["liftover"])
+        logger.info("VCFConverter service initialized.")
+    else:
+        SERVICES["vcf_converter"] = None
+        logger.warning("VCFConverter not initialized because liftover service unavailable.")
+
+
+@app.on_event("startup")
+def startup():
+    # DB init
+    init_db()
+    # Initialize domain services
+    _init_services()
+    # Seed admin API key if provided in env
+    if settings.API_KEY_ADMIN:
+        from app.db import SessionLocal, APIKey
+
+        db = SessionLocal()
+        try:
+            existing = db.query(APIKey).filter(APIKey.key == settings.API_KEY_ADMIN).first()
+            if not existing:
+                db.add(APIKey(key=settings.API_KEY_ADMIN, name="admin", is_active=True))
+                db.commit()
+                logger.info("Seeded admin API key from environment.")
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+
+
+@app.get("/health")
+def health():
+    """
+    Health endpoint reporting basic readiness.
+    """
+    liftover_ready = SERVICES.get("liftover") is not None
+    vcf_ready = SERVICES.get("vcf_converter") is not None
+    db_ok = True
+    try:
+        s = SessionLocal()
+        s.execute("SELECT 1")
+    except Exception:
+        db_ok = False
+    finally:
+        s.close()
+    return {
+        "status": "ok" if liftover_ready and db_ok else "degraded",
+        "liftover_available": liftover_ready,
+        "vcf_converter_available": vcf_ready,
+        "db_ok": db_ok,
+        "version": app.version,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+@app.post("/liftover/single")
+def liftover_single(
+    chrom: str = Query(..., description="chromosome, e.g. chr17"),
+    pos: int = Query(..., ge=1),
+    from_build: str = Query("hg19"),
+    to_build: str = Query("hg38"),
+    include_ml: bool = Query(True),
+):
+    """
+    Convert a single coordinate. Uses Ensembl REST primarily, falls back to chain-file if required.
+    """
+    if not SERVICES.get("liftover"):
+        raise HTTPException(status_code=503, detail="Liftover service unavailable")
+    try:
+        result = SERVICES["liftover"].convert_coordinate(chrom, pos, from_build, to_build)
+        # Add basic job-like metadata
+        result["requested_at"] = datetime.utcnow().isoformat()
+        result["include_ml"] = include_ml
+        return result
+    except Exception as e:
+        logger.exception("Liftover failed:")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/liftover/batch")
+async def liftover_batch(
+    coordinates: List[Dict],
+    from_build: str = Query("hg19"),
+    to_build: str = Query("hg38"),
+    background_tasks: BackgroundTasks = None,
+):
+    """
+    Batch liftover -- queued as background job; returns job_id immediately.
+    Each coordinate: {"chrom":"chr7", "pos":12345}
+    """
+    if not coordinates:
+        raise HTTPException(status_code=400, detail="No coordinates provided")
+    if not SERVICES.get("liftover"):
+        raise HTTPException(status_code=503, detail="Liftover service unavailable")
+
+    job_id = uuid.uuid4().hex[:8]
+    # Add DB Job
+    db = SessionLocal()
+    try:
+        j = Job(job_id=job_id, job_type="liftover_batch", status="queued", total_items=len(coordinates))
+        db.add(j)
+        db.commit()
+    finally:
+        db.close()
+
+    def process():
+        db = SessionLocal()
+        try:
+            j = db.query(Job).filter(Job.job_id == job_id).first()
+            j.status = "processing"
+            db.commit()
+            results = []
+            processed = 0
+            for coord in coordinates:
+                chrom = coord.get("chrom") or coord.get("chromosome")
+                pos = int(coord.get("pos", 0) or 0)
+                try:
+                    r = SERVICES["liftover"].convert_coordinate(chrom, pos, from_build, to_build)
+                except Exception as e:
+                    r = {"success": False, "error": str(e)}
+                results.append({"input": coord, "result": r})
+                processed += 1
+                j.processed_items = processed
+                db.commit()
+            j.status = "completed"
+            j.results = results
+            j.metadata = {"from_build": from_build, "to_build": to_build}
+            db.commit()
+        except Exception as e:
+            logger.exception("Batch liftover job failed")
+            j.status = "failed"
+            j.errors = [str(e)]
+            db.commit()
+        finally:
+            db.close()
+
+    background_tasks.add_task(process)
+    return {"job_id": job_id, "status_endpoint": f"/job-status/{job_id}", "queued_at": datetime.utcnow().isoformat()}
+
+
+@app.post("/vcf/convert")
+async def convert_vcf(
+    file: UploadFile = File(...),
+    from_build: str = Query("hg19"),
+    to_build: str = Query("hg38"),
+    keep_failed: bool = Query(False),
+    background_tasks: BackgroundTasks = None,
+):
+    """
+    Convert uploaded VCF between assemblies. Large files are processed in background.
+    """
+    # Basic checks
+    if not file.filename.endswith((".vcf", ".vcf.gz")):
+        raise HTTPException(status_code=400, detail="File must be VCF format")
+    if not SERVICES.get("vcf_converter"):
+        raise HTTPException(status_code=503, detail="VCF converter unavailable")
+
+    content = await file.read()
+    try:
+        text = content.decode("utf-8")
+    except Exception:
+        # Try to handle gzipped content if small
+        raise HTTPException(status_code=400, detail="Could not decode uploaded file as UTF-8 text")
+
+    job_id = uuid.uuid4().hex[:8]
+    db = SessionLocal()
+    try:
+        j = Job(job_id=job_id, job_type="vcf_conversion", status="queued", total_items=1, metadata={"original_filename": file.filename})
+        db.add(j)
+        db.commit()
+    finally:
+        db.close()
+
+    def process():
+        db = SessionLocal()
+        try:
+            j = db.query(Job).filter(Job.job_id == job_id).first()
+            j.status = "processing"
+            db.commit()
+            result = SERVICES["vcf_converter"].convert_vcf(text, from_build=from_build, to_build=to_build, keep_failed=keep_failed)
+            j.results = result
+            j.status = "completed"
+            j.processed_items = 1
+            j.metadata = result.get("statistics", {})
+            db.commit()
+        except Exception as e:
+            logger.exception("VCF conversion job failed")
+            j.status = "failed"
+            j.errors = [str(e)]
+            db.commit()
+        finally:
+            db.close()
+
+    background_tasks.add_task(process)
+    return {"job_id": job_id, "status_endpoint": f"/job-status/{job_id}", "download_endpoint": f"/vcf/download/{job_id}"}
+
+
+@app.post("/vcf/validate")
+async def validate_vcf(file: UploadFile = File(...)):
+    """
+    Validate VCF file content quickly (structure checks)
+    """
+    if not SERVICES.get("vcf_converter"):
+        raise HTTPException(status_code=503, detail="VCF validator unavailable")
+    content = await file.read()
+    try:
+        text = content.decode("utf-8")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode uploaded file as UTF-8 text")
+    validation = SERVICES["vcf_converter"].validate_vcf(text)
+    return {"filename": file.filename, "validation": validation, "timestamp": datetime.utcnow().isoformat()}
+
+
+@app.get("/vcf/download/{job_id}")
+def download_vcf(job_id: str):
+    """
+    Return converted VCF content for completed job.
+    """
+    db = SessionLocal()
+    try:
+        j = db.query(Job).filter(Job.job_id == job_id).first()
+        if not j:
+            raise HTTPException(status_code=404, detail="Job not found")
+        if j.status != "completed":
+            raise HTTPException(status_code=400, detail=f"Job not completed (status={j.status})")
+        result = j.results
+        # result may be dict or list depending on job_type
+        if isinstance(result, dict) and "vcf_content" in result:
+            return PlainTextResponse(result["vcf_content"], media_type="text/plain", headers={"Content-Disposition": f"attachment; filename=converted_{j.metadata.get('original_filename', 'output.vcf')}"})
+        # If results as stored as JSON, fallback to JSON response
+        return JSONResponse({"results": result})
+    finally:
+        db.close()
+
+
+@app.get("/job-status/{job_id}")
+def job_status(job_id: str):
+    db = SessionLocal()
+    try:
+        j = db.query(Job).filter(Job.job_id == job_id).first()
+        if not j:
+            raise HTTPException(status_code=404, detail="Job not found")
+        response = {
+            "job_id": j.job_id,
+            "job_type": j.job_type,
+            "status": j.status,
+            "total_items": j.total_items,
+            "processed_items": j.processed_items,
+            "created_at": j.created_at.isoformat() if j.created_at else None,
+            "metadata": j.metadata,
+            "errors": j.errors,
+        }
+        if j.status == "completed":
+            response["results_count"] = len(j.results) if isinstance(j.results, list) else 1
+        return response
+    finally:
+        db.close()
+
+
+@app.get("/")
+def index():
+    # Serve a small HTML dashboard or redirect to /docs
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "web", "index.html"), "r", encoding="utf-8") as fh:
+            html = fh.read()
+            return HTMLResponse(html)
+    except Exception:
+        return JSONResponse({"message": "Genomic Resonance API", "docs": "/docs"})
+
+
+# Small helper: expose service list for introspection
+@app.get("/_services")
+def services_info():
+    return {
+        "liftover": bool(SERVICES.get("liftover")),
+        "vcf_converter": bool(SERVICES.get("vcf_converter")),
+        "chain_dir": str(settings.CHAIN_DIR),
+        "ref_dir": str(settings.REF_DIR),
+    }
