@@ -1,127 +1,56 @@
 """
-Database Configuration with Connection Pooling
-Provides SQLAlchemy session management with proper cleanup
+Simple SQLAlchemy SQLite models and helpers for jobs, API keys, labels.
 """
-from sqlalchemy import create_engine, event, pool
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-from contextlib import contextmanager
-from typing import Generator
-import logging
-
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, JSON
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.sql import func
 from app.config import settings
+import os
 
-logger = logging.getLogger(__name__)
+DB_URL = f"sqlite:///{settings.DB_PATH}"
+os.makedirs(settings.DATA_DIR, exist_ok=True)
 
-# Create engine with appropriate pooling
-if settings.DATABASE_URL.startswith("sqlite"):
-    # SQLite-specific configuration
-    engine = create_engine(
-        settings.DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        echo=settings.DEBUG
-    )
-else:
-    # PostgreSQL/MySQL configuration
-    engine = create_engine(
-        settings.DATABASE_URL,
-        pool_size=settings.DATABASE_POOL_SIZE,
-        max_overflow=10,
-        pool_pre_ping=True,
-        echo=settings.DEBUG
-    )
-
-# Session factory
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-# Base class for models
+engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
 
 
-# Event listeners for connection management
-@event.listens_for(engine, "connect")
-def receive_connect(dbapi_conn, connection_record):
-    """Configure connection on connect"""
-    if settings.DATABASE_URL.startswith("sqlite"):
-        # Enable foreign keys for SQLite
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+class APIKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(128), unique=True, nullable=False)
+    name = Column(String(128), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-@event.listens_for(engine, "checkout")
-def receive_checkout(dbapi_conn, connection_record, connection_proxy):
-    """Verify connection on checkout"""
-    if settings.DATABASE_URL.startswith("sqlite"):
-        cursor = dbapi_conn.cursor()
-        try:
-            cursor.execute("SELECT 1")
-        except Exception:
-            raise pool.InvalidRequestError()
-        finally:
-            cursor.close()
+class Job(Base):
+    __tablename__ = "jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String(64), unique=True, nullable=False)
+    job_type = Column(String(64), nullable=False)
+    status = Column(String(32), default="queued")
+    total_items = Column(Integer, default=0)
+    processed_items = Column(Integer, default=0)
+    results = Column(JSON, nullable=True)
+    errors = Column(JSON, nullable=True)
+    metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
-def get_db() -> Generator[Session, None, None]:
-    """
-    Dependency for FastAPI endpoints
-    Provides database session with automatic cleanup
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@contextmanager
-def get_db_context() -> Generator[Session, None, None]:
-    """
-    Context manager for database sessions
-    Use in non-FastAPI code
-    """
-    db = SessionLocal()
-    try:
-        yield db
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
+class Label(Base):
+    __tablename__ = "labels"
+    id = Column(Integer, primary_key=True, index=True)
+    sample_id = Column(String(128), nullable=False)
+    label = Column(String(64), nullable=False)
+    annotator = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 def init_db():
-    """Initialize database tables"""
-    from app.models.database_models import (
-        Job, LiftoverResult, ValidationRecord,
-        BenchmarkResult, MLModel, ChainFile
-    )
-    
-    logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
-    logger.info("Database tables created successfully")
 
 
-def cleanup_old_jobs(days: int = None):
-    """Clean up old completed jobs"""
-    from datetime import datetime, timedelta
-    from app.models.database_models import Job
-    
-    days = days or settings.JOB_CLEANUP_DAYS
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
-    
-    with get_db_context() as db:
-        deleted_count = db.query(Job).filter(
-            Job.completed_at < cutoff_date,
-            Job.status.in_(["completed", "failed"])
-        ).delete()
-        
-        logger.info(f"Cleaned up {deleted_count} old jobs")
-        return deleted_count
+# Initialize DB on import if not present
+init_db()
