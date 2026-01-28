@@ -1,7 +1,7 @@
 """
 Application configuration and environment-backed settings.
 """
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from pydantic import Field
 from pathlib import Path
 
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     DATA_DIR: Path = Field(default=BASE_DIR / "data")
     CHAIN_DIR: Path = Field(default=DATA_DIR / "chains")
     REF_DIR: Path = Field(default=DATA_DIR / "reference")
-    REFERENCE_DIR: Path = Field(default=DATA_DIR / "reference")
+    REFERENCE_DIR: Path = Field(default=DATA_DIR / "reference")  # Alias for REF_DIR
     MODEL_DIR: Path = Field(default=BASE_DIR.parent / "models")
     DB_PATH: str = Field(default="app/data/app.db")
 
