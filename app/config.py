@@ -10,8 +10,9 @@ class Settings(BaseSettings):
     DATA_DIR: Path = Field(default=BASE_DIR / "data")
     CHAIN_DIR: Path = Field(default=DATA_DIR / "chains")
     REF_DIR: Path = Field(default=DATA_DIR / "reference")
+    REFERENCE_DIR: Path = Field(default=DATA_DIR / "reference")
     MODEL_DIR: Path = Field(default=BASE_DIR.parent / "models")
-    DB_PATH: str = Field(default=str(DATA_DIR / "app.db"))
+    DB_PATH: str = Field(default="app/data/app.db")
 
     # Ensembl
     ENSEMBL_REST_BASE: str = Field(default="https://rest.ensembl.org")

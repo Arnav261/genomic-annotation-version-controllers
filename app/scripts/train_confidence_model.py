@@ -39,7 +39,7 @@ except ImportError:
     HAS_SKLEARN = False
     logger.error("scikit-learn required: pip install scikit-learn matplotlib")
 
-from app.services.feature_extractor import FeatureExtractor
+from app.services.feature_extractor import FeatureExtractor, GenomicFeatures
 from app.services.confidence_predictor import ConfidencePredictor
 from app.services.validation_engine import ValidationEngine
 from app.services.real_liftover import RealLiftoverService

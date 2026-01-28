@@ -44,15 +44,13 @@ class ChainFileManager:
         return mapping.get(build, build.lower())
     
     def _get_chain_key(self, from_build: str, to_build: str) -> str:
-        """Get chain file key - FIXED capitalization"""
+        """Get chain file key matching UCSC format: hg19ToHg38"""
         from_norm = self._normalize_build(from_build)
         to_norm = self._normalize_build(to_build)
         
-        # Correct capitalization: hg19ToHg38 not Hg19ToHg38
-        from_cap = from_norm[:2] + from_norm[2:].capitalize()
-        to_cap = to_norm[:2] + to_norm[2:].capitalize()
+        to_capitalized = to_norm[0].upper() + to_norm[1:]
         
-        return f"{from_cap}To{to_cap}"
+        return f"{from_norm}To{to_capitalized}"
     
     def download_chain_file(self, chain_key: str, force: bool = False) -> Path:
         """Download chain file if not present"""

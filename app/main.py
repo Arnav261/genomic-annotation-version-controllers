@@ -16,6 +16,8 @@ import json
 import csv
 from io import StringIO
 import numpy as np
+from app.services.feature_extractor import FeatureExtractor
+from app.services.confidence_predictor import ConfidencePredictor
 
 # Configure logging
 logging.basicConfig(
@@ -300,7 +302,7 @@ def landing_page():
                 </div>
 
                 <div id="demo-tab" class="tab-content active">
-                    <h2>🧪 Live Demo - Single Coordinate</h2>
+                    <h2> Live Demo - Single Coordinate</h2>
                     
                     <div class="demo-section">
                         <p>Example: BRCA1 gene start position</p>
@@ -332,7 +334,7 @@ def landing_page():
                             <input type="checkbox" id="include-ml" checked> Include ML Confidence Prediction
                         </label>
                         
-                        <button onclick="testLiftover()">🚀 Convert Coordinate</button>
+                        <button onclick="testLiftover()"> Convert Coordinate</button>
                         <button class="btn-secondary" onclick="loadExample('BRCA1')">BRCA1</button>
                         <button class="btn-secondary" onclick="loadExample('TP53')">TP53</button>
                         <button class="btn-secondary" onclick="loadExample('EGFR')">EGFR</button>
@@ -343,14 +345,14 @@ def landing_page():
                 </div>
                 
                 <div id="batch-tab" class="tab-content">
-                    <h2>📤 Batch File Upload</h2>
+                    <h2> Batch File Upload</h2>
                     
                     <div class="demo-section">
                         <p>Upload CSV/TSV file with columns: chrom, pos</p>
                         
                         <input type="file" id="batch-file" accept=".csv,.tsv,.txt">
                         
-                        <button onclick="uploadBatch()">📤 Upload & Process</button>
+                        <button onclick="uploadBatch()"> Upload & Process</button>
                         
                         <div class="loading" id="batch-loading">Uploading...</div>
                         <div class="result-box" id="batch-result"></div>
