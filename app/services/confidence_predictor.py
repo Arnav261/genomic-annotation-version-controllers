@@ -236,6 +236,37 @@ class ConfidencePredictor:
         
         logger.info(f"Model saved to {save_path}")
     
+    def get_feature_importance(self) -> Optional[Dict[str, float]]:
+        """Get feature importance from trained model"""
+        if not self.is_trained or self.model is None:
+            logger.warning("Model not trained, no feature importance available")
+            return None
+        
+        try:
+            if hasattr(self.model, 'calibrated_classifiers_'):
+                base_estimator = self.model.calibrated_classifiers_[0].estimator
+            else:
+                base_estimator = self.model
+        
+            # Get feature importances from the base GradientBoostingClassifier
+            if hasattr(base_estimator, 'feature_importances_'):
+                importances = base_estimator.feature_importances_
+                importance_dict = {}
+                for i, importance in enumerate(importances):
+                    if i < len(self.feature_names):
+                        importance_dict[self.feature_names[i]] = float(importance)
+                return importance_dict
+            else:
+                logger.warning("Model does not have feature_importances_ attribute")
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get feature importance: {e}")
+            return None
+
+    def predict_batch(self, features_list: List[np.ndarray]) -> List[float]:
+        """Predict confidence scores for a batch of features"""
+        return [self.predict_confidence(features) for features in features_list]
+
     def interpret_confidence(self, confidence: float) -> Dict:
         """Provide human-readable interpretation"""
         if confidence >= 0.95:
