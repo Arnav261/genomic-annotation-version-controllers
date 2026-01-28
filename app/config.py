@@ -8,11 +8,11 @@ from pathlib import Path
 class Settings(BaseSettings):
     # Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
-    DATA_DIR: Path = Field(default=BASE_DIR / "data")
-    CHAIN_DIR: Path = Field(default=DATA_DIR / "chains")
-    REF_DIR: Path = Field(default=DATA_DIR / "reference")
-    REFERENCE_DIR: Path = Field(default=DATA_DIR / "reference")  # Alias for REF_DIR
-    MODEL_DIR: Path = Field(default=BASE_DIR.parent / "models")
+    DATA_DIR: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "app" / "data")
+    CHAIN_DIR: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "app" / "data" / "chains")
+    REF_DIR: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "app" / "data" / "reference")
+    REFERENCE_DIR: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "app" / "data" / "reference")
+    MODEL_DIR: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "models")
     DB_PATH: str = Field(default="app/data/app.db")
 
     # Ensembl
