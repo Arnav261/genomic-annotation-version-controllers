@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     MODEL_DIR: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "models")
     DB_PATH: str = Field(default="app/data/app.db")
 
+    # Legacy/compatibility fields (from .env)
+    DATABASE_URL: str = Field(default="sqlite:///./app/data/gavc.db")
+    UPLOAD_DIR: str = Field(default="./app/data/uploads")
+    LIFTOVER_MODE: str = Field(default="ucsc")
+    ENSEMBL_BASE_URL: str = Field(default="https://rest.ensembl.org")
+    ENSEMBL_GRCH37_BASE_URL: str = Field(default="https://grch37.rest.ensembl.org")
+
     # Ensembl
     ENSEMBL_REST_BASE: str = Field(default="https://rest.ensembl.org")
     ENSEMBL_REST_GRCH37_BASE: str = Field(default="https://grch37.rest.ensembl.org")
@@ -40,6 +47,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Ignore extra fields from .env
 
 
 settings = Settings()
