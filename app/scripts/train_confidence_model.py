@@ -173,7 +173,7 @@ class ModelTrainer:
         logger.info("Evaluating model...")
         
         # Predict
-        confidences = self.confidence_predictor.predict_batch([x for x in X])
+        confidences = [self.confidence_predictor.predict_confidence(x) for x in X]
         predictions = [1 if c >= 0.5 else 0 for c in confidences]
         
         # Calculate metrics
