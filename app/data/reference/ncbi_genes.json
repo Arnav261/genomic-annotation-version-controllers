@@ -1,0 +1,182 @@
+[
+  {
+    "gene_id": "BRCA1",
+    "ncbi_gene_id": "672",
+    "hg19": {
+      "chr": "chr17",
+      "start": 41196312,
+      "end": 41277500,
+      "strand": "-"
+    },
+    "hg38": {
+      "chr": "chr17",
+      "start": 43044295,
+      "end": 43125483,
+      "strand": "-"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 81188
+  },
+  {
+    "gene_id": "TP53",
+    "ncbi_gene_id": "7157",
+    "hg19": {
+      "chr": "chr17",
+      "start": 7571720,
+      "end": 7590868,
+      "strand": "-"
+    },
+    "hg38": {
+      "chr": "chr17",
+      "start": 7661779,
+      "end": 7687550,
+      "strand": "-"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 19148
+  },
+  {
+    "gene_id": "EGFR",
+    "ncbi_gene_id": "1956",
+    "hg19": {
+      "chr": "chr7",
+      "start": 55086725,
+      "end": 55275031,
+      "strand": "+"
+    },
+    "hg38": {
+      "chr": "chr7",
+      "start": 55019017,
+      "end": 55211628,
+      "strand": "+"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 188306
+  },
+  {
+    "gene_id": "CFTR",
+    "ncbi_gene_id": "1080",
+    "hg19": {
+      "chr": "chr7",
+      "start": 117120016,
+      "end": 117308718,
+      "strand": "+"
+    },
+    "hg38": {
+      "chr": "chr7",
+      "start": 117480025,
+      "end": 117668665,
+      "strand": "+"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 188702
+  },
+  {
+    "gene_id": "APOE",
+    "ncbi_gene_id": "348",
+    "hg19": {
+      "chr": "chr19",
+      "start": 45409011,
+      "end": 45412650,
+      "strand": "+"
+    },
+    "hg38": {
+      "chr": "chr19",
+      "start": 44905796,
+      "end": 44909393,
+      "strand": "+"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 3639
+  },
+  {
+    "gene_id": "KRAS",
+    "ncbi_gene_id": "3845",
+    "hg19": {
+      "chr": "chr12",
+      "start": 25358180,
+      "end": 25403854,
+      "strand": "-"
+    },
+    "hg38": {
+      "chr": "chr12",
+      "start": 25205246,
+      "end": 25250929,
+      "strand": "-"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 45674
+  },
+  {
+    "gene_id": "BRCA2",
+    "ncbi_gene_id": "675",
+    "hg19": {
+      "chr": "chr13",
+      "start": 32889611,
+      "end": 32973805,
+      "strand": "+"
+    },
+    "hg38": {
+      "chr": "chr13",
+      "start": 32315086,
+      "end": 32400266,
+      "strand": "+"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 84194
+  },
+  {
+    "gene_id": "MYC",
+    "ncbi_gene_id": "4609",
+    "hg19": {
+      "chr": "chr8",
+      "start": 128748315,
+      "end": 128753680,
+      "strand": "+"
+    },
+    "hg38": {
+      "chr": "chr8",
+      "start": 127735434,
+      "end": 127742951,
+      "strand": "+"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 5365
+  },
+  {
+    "gene_id": "PTEN",
+    "ncbi_gene_id": "5728",
+    "hg19": {
+      "chr": "chr10",
+      "start": 89623195,
+      "end": 89728532,
+      "strand": "+"
+    },
+    "hg38": {
+      "chr": "chr10",
+      "start": 87863113,
+      "end": 87971930,
+      "strand": "+"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 105337
+  },
+  {
+    "gene_id": "HBB",
+    "ncbi_gene_id": "3043",
+    "hg19": {
+      "chr": "chr11",
+      "start": 5246696,
+      "end": 5248301,
+      "strand": "-"
+    },
+    "hg38": {
+      "chr": "chr11",
+      "start": 5225464,
+      "end": 5229395,
+      "strand": "-"
+    },
+    "gene_type": "protein_coding",
+    "gene_size": 1605
+  }
+]

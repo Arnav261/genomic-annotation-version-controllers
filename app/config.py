@@ -1,7 +1,8 @@
 """
 Application configuration and environment-backed settings.
 """
-from pydantic import BaseSettings, Field, AnyHttpUrl
+from pydantic import BaseSettings
+from pydantic import Field
 from pathlib import Path
 
 class Settings(BaseSettings):
