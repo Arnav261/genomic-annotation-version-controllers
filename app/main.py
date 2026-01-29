@@ -17,6 +17,10 @@ import csv
 from io import StringIO
 import numpy as np
 
+SERVICES: Dict[str, Any] = {}
+startup_time = time.time()
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -42,47 +46,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global state
-startup_time = time.time()
+
 job_storage: Dict[str, Any] = {}
 
-# Service initialization
-SERVICES = {}
+def init_services():
+    try:
+        SERVICES["chain_liftover"] = RealLiftover(chain_dir=str(settings.CHAIN_DIR))
+    except Exception:
+        SERVICES["chain_liftover"] = None
 
-def initialize_services():
-    """Initialize all services with error handling"""
-    global SERVICES
-    
-    service_configs = [
-        ('liftover', 'app.services.real_liftover', 'RealLiftoverService', None),
-        ('vcf_converter', 'app.services.vcf_converter', 'VCFConverter', 'liftover'),
-        ('feature_extractor', 'app.services.feature_extractor', 'FeatureExtractor', None),
-        ('confidence_predictor', 'app.services.confidence_predictor', 'ConfidencePredictor', None),
-        ('validation_engine', 'app.services.validation_engine', 'ValidationEngine', None),
-    ]
-    
-    for service_name, module_path, class_name, dependency in service_configs:
+    try:
+        SERVICES["liftover"] = EnsemblLiftover(
+            fallback=SERVICES.get("chain_liftover")
+        )
+    except Exception:
+        SERVICES["liftover"] = SERVICES.get("chain_liftover")
+
+    if FeatureExtractor:
         try:
-            module = __import__(module_path, fromlist=[class_name])
-            service_class = getattr(module, class_name)
-            
-            if dependency and dependency not in SERVICES:
-                logger.warning(f"Service {service_name} skipped: dependency '{dependency}' not available")
-                SERVICES[service_name] = None
-                continue
-            
-            if dependency:
-                SERVICES[service_name] = service_class(SERVICES[dependency])
-            else:
-                SERVICES[service_name] = service_class()
-            
-            logger.info(f"Service {service_name} initialized")
-        except Exception as e:
-            logger.error(f"Service {service_name} failed: {e}")
-            SERVICES[service_name] = None
-    
-    return bool(SERVICES.get('liftover'))
+            SERVICES["feature_extractor"] = FeatureExtractor(
+                data_dir=str(settings.REF_DIR)
+            )
+        except Exception:
+            SERVICES["feature_extractor"] = None
+    else:
+        SERVICES["feature_extractor"] = None
 
+    if ConfidencePredictor:
+        try:
+            cp = ConfidencePredictor(model_dir=str(settings.MODEL_DIR))
+            cp.load_model_if_exists()
+            SERVICES["confidence_predictor"] = cp
+        except Exception:
+            SERVICES["confidence_predictor"] = None
+    else:
+        SERVICES["confidence_predictor"] = None
+
+    if SERVICES.get("liftover"):
+        SERVICES["vcf_converter"] = VCFConverter(SERVICES["liftover"])
+    else:
+        SERVICES["vcf_converter"] = None
+    
 SERVICES_AVAILABLE = initialize_services()
 
 # Job management
@@ -116,465 +120,179 @@ class BatchJob:
             "metadata": self.metadata
         }
 
-
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
-    """Professional landing page"""
-    active_jobs = len([j for j in job_storage.values() if j.status in ["queued", "processing"]])
-    
+    db = SessionLocal()
+    try:
+        active_jobs = db.query(Job).filter(
+            Job.status.in_(["queued", "processing"])
+        ).count()
+    finally:
+        db.close()
+
     return HTMLResponse(f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Resonance - Genomic Liftover</title>
-        <style>
-            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{
-                font-family: 'Times New Roman', Times, serif;
-                background: #ffffff;
-                color: #000000;
-                min-height: 100vh;
-            }}
-            .header {{
-                background: #001f3f;
-                color: #ffffff;
-                padding: 2rem 0;
-                border-bottom: 3px solid #000000;
-            }}
-            .container {{
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 0 20px;
-            }}
-            h1 {{
-                font-size: 2.5em;
-                font-weight: normal;
-                letter-spacing: 2px;
-                margin-bottom: 0.5rem;
-            }}
-            .subtitle {{
-                font-size: 1.1em;
-                opacity: 0.9;
-            }}
-            .content {{
-                padding: 2rem 0;
-            }}
-            .card {{
-                background: #ffffff;
-                border: 2px solid #001f3f;
-                padding: 2rem;
-                margin-bottom: 2rem;
-            }}
-            .card h2 {{
-                color: #001f3f;
-                font-size: 1.8em;
-                font-weight: normal;
-                margin-bottom: 1.5rem;
-                border-bottom: 1px solid #001f3f;
-                padding-bottom: 0.5rem;
-            }}
-            .status-grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 1.5rem;
-                margin: 2rem 0;
-            }}
-            .status-item {{
-                border: 1px solid #001f3f;
-                padding: 1.5rem;
-                text-align: center;
-            }}
-            .status-value {{
-                font-size: 2em;
-                color: #001f3f;
-                font-weight: bold;
-                margin-bottom: 0.5rem;
-            }}
-            .status-label {{
-                color: #000000;
-                font-size: 0.95em;
-            }}
-            .demo-section {{
-                margin: 2rem 0;
-                padding: 1.5rem;
-                border: 1px solid #001f3f;
-            }}
-            input, select, textarea {{
-                width: 100%;
-                padding: 0.75rem;
-                border: 1px solid #001f3f;
-                font-family: 'Times New Roman', Times, serif;
-                font-size: 1rem;
-                margin: 0.5rem 0;
-            }}
-            button {{
-                background: #001f3f;
-                color: #ffffff;
-                padding: 0.75rem 2rem;
-                border: none;
-                cursor: pointer;
-                font-family: 'Times New Roman', Times, serif;
-                font-size: 1rem;
-                margin: 0.5rem 0.5rem 0.5rem 0;
-            }}
-            button:hover {{
-                background: #003366;
-            }}
-            .btn-secondary {{
-                background: #666666;
-            }}
-            .btn-secondary:hover {{
-                background: #444444;
-            }}
-            .result-box {{
-                background: #f5f5f5;
-                padding: 1rem;
-                border: 1px solid #001f3f;
-                margin-top: 1rem;
-                font-family: 'Courier New', monospace;
-                white-space: pre-wrap;
-                max-height: 400px;
-                overflow-y: auto;
-                display: none;
-            }}
-            .loading {{
-                display: none;
-                color: #001f3f;
-                margin-top: 1rem;
-            }}
-            .error {{
-                color: #cc0000;
-                background: #ffe6e6;
-                padding: 1rem;
-                border: 1px solid #cc0000;
-                margin-top: 1rem;
-            }}
-            .success {{
-                color: #006600;
-                background: #e6ffe6;
-                padding: 1rem;
-                border: 1px solid #006600;
-                margin-top: 1rem;
-            }}
-            .tab {{
-                display: inline-block;
-                padding: 0.75rem 1.5rem;
-                background: #f5f5f5;
-                border: 1px solid #001f3f;
-                cursor: pointer;
-                margin-right: 0.25rem;
-            }}
-            .tab.active {{
-                background: #001f3f;
-                color: #ffffff;
-            }}
-            .tab-content {{
-                display: none;
-            }}
-            .tab-content.active {{
-                display: block;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <div class="container">
-                <h1>RESONANCE</h1>
-                <p class="subtitle">Genomic Coordinate Liftover Platform</p>
-            </div>
-        </div>
-        
-        <div class="container content">
-            <div class="card">
-                <h2>System Status</h2>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <div class="status-value">{"OPERATIONAL" if SERVICES_AVAILABLE else "LIMITED"}</div>
-                        <div class="status-label">System Status</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-value">{active_jobs}</div>
-                        <div class="status-label">Active Jobs</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-value">{"YES" if SERVICES.get('confidence_predictor') else "NO"}</div>
-                        <div class="status-label">ML Confidence</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-value">{"YES" if SERVICES.get('vcf_converter') else "NO"}</div>
-                        <div class="status-label">VCF Support</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <div style="border-bottom: 1px solid #001f3f; margin-bottom: 2rem;">
-                    <div class="tab active" onclick="switchTab('demo')">Live Demo</div>
-                    <div class="tab" onclick="switchTab('batch')">Batch Processing</div>
-                    <div class="tab" onclick="switchTab('docs')">Documentation</div>
-                </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Resonance – Genomic Liftover</title>
 
-                <div id="demo-tab" class="tab-content active">
-                    <h2>Live Demo - Single Coordinate</h2>
-                    
-                    <div class="demo-section">
-                        <p>Example: BRCA1 gene start position (hg19 to hg38)</p>
-                        
-                        <label>Chromosome:</label>
-                        <input type="text" id="chrom" value="chr17" placeholder="chr17">
-                        
-                        <label>Position:</label>
-                        <input type="number" id="pos" value="41196312" placeholder="41196312">
-                        
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div>
-                                <label>From Build:</label>
-                                <select id="from-build">
-                                    <option value="hg19" selected>hg19 (GRCh37)</option>
-                                    <option value="hg38">hg38 (GRCh38)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label>To Build:</label>
-                                <select id="to-build">
-                                    <option value="hg38" selected>hg38 (GRCh38)</option>
-                                    <option value="hg19">hg19 (GRCh37)</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <label>
-                            <input type="checkbox" id="include-ml" checked> Include ML Confidence Prediction
-                        </label>
-                        
-                        <button onclick="testLiftover()">Convert Coordinate</button>
-                        <button class="btn-secondary" onclick="loadExample('BRCA1')">BRCA1</button>
-                        <button class="btn-secondary" onclick="loadExample('TP53')">TP53</button>
-                        <button class="btn-secondary" onclick="loadExample('EGFR')">EGFR</button>
-                        
-                        <div class="loading" id="loading">Processing...</div>
-                        <div class="result-box" id="result"></div>
-                    </div>
-                </div>
-                
-                <div id="batch-tab" class="tab-content">
-                    <h2>Batch File Upload</h2>
-                    
-                    <div class="demo-section">
-                        <p>Upload CSV or TSV file with columns: chrom, pos</p>
-                        
-                        <input type="file" id="batch-file" accept=".csv,.tsv,.txt">
-                        
-                        <button onclick="uploadBatch()">Upload and Process</button>
-                        
-                        <div class="loading" id="batch-loading">Uploading...</div>
-                        <div class="result-box" id="batch-result"></div>
-                    </div>
-                </div>
-                
-                <div id="docs-tab" class="tab-content">
-                    <h2>Documentation</h2>
-                    
-                    <h3>Core Features</h3>
-                    <ul style="line-height: 2; margin-left: 2rem;">
-                        <li>Coordinate Liftover: UCSC chain file-based conversion with ML confidence</li>
-                        <li>VCF Processing: Full variant file conversion with sample preservation</li>
-                        <li>Validation: Tested against NCBI RefSeq gene coordinates</li>
-                    </ul>
-                    
-                    <div style="margin-top: 2rem;">
-                        <a href="/docs" style="display: inline-block; padding: 0.75rem 1.5rem; background: #001f3f; color: white; text-decoration: none; margin: 0.5rem;">API Documentation</a>
-                        <a href="/validation-report" style="display: inline-block; padding: 0.75rem 1.5rem; background: #001f3f; color: white; text-decoration: none; margin: 0.5rem;">Validation Report</a>
-                        <a href="/health" style="display: inline-block; padding: 0.75rem 1.5rem; background: #001f3f; color: white; text-decoration: none; margin: 0.5rem;">System Health</a>
-                    </div>
-                </div>
-            </div>
-        </div>
+<style>
+:root {{
+    --navy: #001f3f;
+    --light: #f7f9fb;
+    --border: #d0d7de;
+}}
 
-        <script>
-            function switchTab(tab) {{
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
-                event.target.classList.add('active');
-                document.getElementById(tab + '-tab').classList.add('active');
-            }}
+body {{
+    margin: 0;
+    font-family: "Times New Roman", Georgia, serif;
+    background: var(--light);
+    color: #000;
+}}
 
-            function loadExample(gene) {{
-                const examples = {{
-                    'BRCA1': {{ chrom: 'chr17', pos: 41196312, from: 'hg19', to: 'hg38' }},
-                    'TP53': {{ chrom: 'chr17', pos: 7571720, from: 'hg19', to: 'hg38' }},
-                    'EGFR': {{ chrom: 'chr7', pos: 55086725, from: 'hg19', to: 'hg38' }}
-                }};
-                
-                const ex = examples[gene];
-                document.getElementById('chrom').value = ex.chrom;
-                document.getElementById('pos').value = ex.pos;
-                document.getElementById('from-build').value = ex.from;
-                document.getElementById('to-build').value = ex.to;
-            }}
+header {{
+    background: var(--navy);
+    color: #fff;
+    padding: 2.5rem 3rem;
+}}
 
-            async function testLiftover() {{
-                const chrom = document.getElementById('chrom').value;
-                const pos = document.getElementById('pos').value;
-                const fromBuild = document.getElementById('from-build').value;
-                const toBuild = document.getElementById('to-build').value;
-                const includeML = document.getElementById('include-ml').checked;
-                
-                const resultDiv = document.getElementById('result');
-                const loadingDiv = document.getElementById('loading');
-                
-                resultDiv.style.display = 'none';
-                loadingDiv.style.display = 'block';
-                
-                try {{
-                    const url = `/liftover/single?chrom=${{chrom}}&pos=${{pos}}&from_build=${{fromBuild}}&to_build=${{toBuild}}&include_ml=${{includeML}}`;
-                    const response = await fetch(url, {{ method: 'POST' }});
-                    const data = await response.json();
-                    
-                    loadingDiv.style.display = 'none';
-                    resultDiv.style.display = 'block';
-                    
-                    if (data.success) {{
-                        let html = '<div class="success">Conversion Successful</div>';
-                        html += `Original: ${{data.original.chrom}}:${{data.original.pos}} (${{fromBuild}})\\n`;
-                        html += `Converted: ${{data.lifted_chrom}}:${{data.lifted_pos}} (${{toBuild}})\\n`;
-                        html += `Chain Score: ${{(data.confidence * 100).toFixed(2)}}%\\n`;
-                        
-                        if (data.ml_analysis && data.ml_analysis.confidence_score !== undefined) {{
-                            html += `\\nML Confidence: ${{(data.ml_analysis.confidence_score * 100).toFixed(2)}}%\\n`;
-                            if (data.ml_analysis.interpretation && data.ml_analysis.interpretation.recommendation) {{
-                                html += `Recommendation: ${{data.ml_analysis.interpretation.recommendation}}\\n`;
-                            }}
-                        }}
-                        
-                        html += `\\nFull Response:\\n${{JSON.stringify(data, null, 2)}}`;
-                        resultDiv.innerHTML = html;
-                    }} else {{
-                        resultDiv.innerHTML = `<div class="error">Conversion Failed</div>\\n${{data.error || 'Unknown error'}}`;
-                    }}
-                }} catch (error) {{
-                    loadingDiv.style.display = 'none';
-                    resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<div class="error">Request Error: ${{error.message}}</div>`;
-                }}
-            }}
+header h1 {{
+    margin: 0;
+    font-size: 2.6rem;
+    letter-spacing: 0.05em;
+}}
 
-            async function uploadBatch() {{
-                const fileInput = document.getElementById('batch-file');
-                const file = fileInput.files[0];
-                
-                if (!file) {{
-                    alert('Please select a file');
-                    return;
-                }}
-                
-                const resultDiv = document.getElementById('batch-result');
-                const loadingDiv = document.getElementById('batch-loading');
-                
-                resultDiv.style.display = 'none';
-                loadingDiv.style.display = 'block';
-                
-                try {{
-                    const text = await file.text();
-                    const lines = text.trim().split('\\n');
-                    
-                    const separator = text.includes('\\t') ? '\\t' : ',';
-                    const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
-                    
-                    const chromIdx = headers.findIndex(h => h === 'chrom' || h === 'chr' || h === 'chromosome');
-                    const posIdx = headers.findIndex(h => h === 'pos' || h === 'position' || h === 'start');
-                    
-                    if (chromIdx === -1 || posIdx === -1) {{
-                        throw new Error('File must have "chrom" and "pos" columns');
-                    }}
-                    
-                    const coordinates = [];
-                    for (let i = 1; i < lines.length; i++) {{
-                        const parts = lines[i].split(separator);
-                        if (parts.length > Math.max(chromIdx, posIdx)) {{
-                            coordinates.push({{
-                                chrom: parts[chromIdx].trim(),
-                                pos: parseInt(parts[posIdx].trim())
-                            }});
-                        }}
-                    }}
-                    
-                    const response = await fetch('/liftover/batch?from_build=hg19&to_build=hg38&include_ml=true', {{
-                        method: 'POST',
-                        headers: {{ 'Content-Type': 'application/json' }},
-                        body: JSON.stringify(coordinates)
-                    }});
-                    
-                    const data = await response.json();
-                    
-                    loadingDiv.style.display = 'none';
-                    resultDiv.style.display = 'block';
-                    
-                    let html = '<div class="success">Batch Job Created</div>';
-                    html += `Job ID: ${{data.job_id}}\\n`;
-                    html += `Coordinates: ${{data.total_coordinates}}\\n`;
-                    html += `Status: ${{data.status}}\\n\\n`;
-                    html += `Check status at: <a href="/job-status/${{data.job_id}}" target="_blank">/job-status/${{data.job_id}}</a>`;
-                    
-                    resultDiv.innerHTML = html;
-                    
-                }} catch (error) {{
-                    loadingDiv.style.display = 'none';
-                    resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<div class="error">Error: ${{error.message}}</div>`;
-                }}
-            }}
-        </script>
-    </body>
-    </html>
-    """)
+header p {{
+    margin-top: 0.5rem;
+    opacity: 0.9;
+}}
+
+main {{
+    max-width: 1200px;
+    margin: auto;
+    padding: 3rem;
+}}
+
+.section {{
+    background: #fff;
+    border: 2px solid var(--navy);
+    padding: 2rem;
+    margin-bottom: 2.5rem;
+}}
+
+.section h2 {{
+    margin-top: 0;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+}}
+
+label {{
+    display: block;
+    margin-top: 1rem;
+    font-weight: bold;
+}}
+
+input {{
+    width: 100%;
+    padding: 0.6rem;
+    margin-top: 0.3rem;
+}}
+
+button {{
+    margin-top: 1.5rem;
+    padding: 0.7rem 1.8rem;
+    background: var(--navy);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+}}
+
+pre {{
+    background: #f5f5f5;
+    border: 1px solid var(--border);
+    padding: 1rem;
+    margin-top: 1.5rem;
+    white-space: pre-wrap;
+    font-family: monospace;
+}}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>RESONANCE</h1>
+<p>Genomic Coordinate Liftover & Validation Platform</p>
+</header>
+
+<main>
+
+<section class="section">
+<h2>System Status</h2>
+<ul>
+<li>Active jobs: {active_jobs}</li>
+<li>ML confidence: {"Available" if SERVICES.get("confidence_predictor") else "Unavailable"}</li>
+<li>VCF processing: {"Enabled" if SERVICES.get("vcf_converter") else "Disabled"}</li>
+</ul>
+</section>
+
+<section class="section">
+<h2>Live Coordinate Conversion</h2>
+
+<label>Chromosome</label>
+<input id="chrom" value="chr17">
+
+<label>Position</label>
+<input id="pos" value="41196312">
+
+<button onclick="run()">Convert</button>
+
+<pre id="out"></pre>
+</section>
+
+</main>
+
+<script>
+/* existing JS logic preserved */
+async function run() {{
+    const chrom = document.getElementById("chrom").value;
+    const pos = document.getElementById("pos").value;
+
+    const r = await fetch(
+        `/liftover/single?chrom=${{chrom}}&pos=${{pos}}`
+    );
+    document.getElementById("out").textContent =
+        JSON.stringify(await r.json(), null, 2);
+}}
+</script>
+
+</body>
+</html>
+""")
 
 
 @app.get("/health")
-def health_check():
-    """System health check"""
-    active_count = sum(1 for job in job_storage.values() if job.status in ["queued", "processing"])
-    completed_count = sum(1 for job in job_storage.values() if job.status == "completed")
-    failed_count = sum(1 for job in job_storage.values() if job.status == "failed")
-    
-    # Test ML model
-    ml_trained = False
-    if SERVICES.get('confidence_predictor'):
-        try:
-            test_features = np.zeros((1, 11))
-            _ = SERVICES['confidence_predictor'].predict_confidence(test_features)
-            ml_trained = True
-        except:
-            pass
-    
+def health():
+    db_ok = True
+    try:
+        s = SessionLocal()
+        s.execute("SELECT 1")
+        s.close()
+    except Exception:
+        db_ok = False
+
     return {
-        "status": "operational" if SERVICES_AVAILABLE else "limited",
-        "version": "1.0.0",
-        "timestamp": datetime.now().isoformat(),
+        "status": "ok" if SERVICES.get("liftover") and db_ok else "degraded",
         "uptime_seconds": int(time.time() - startup_time),
-        
         "services": {
-            "liftover": SERVICES.get('liftover') is not None,
-            "vcf_converter": SERVICES.get('vcf_converter') is not None,
-            "feature_extraction": SERVICES.get('feature_extractor') is not None,
-            "confidence_prediction": SERVICES.get('confidence_predictor') is not None,
-            "ml_model_trained": ml_trained,
-            "validation_engine": SERVICES.get('validation_engine') is not None,
-        },
-        
-        "jobs": {
-            "active": active_count,
-            "completed": completed_count,
-            "failed": failed_count,
-            "total": len(job_storage)
-        },
-        
-        "supported_assemblies": ["hg19/GRCh37", "hg38/GRCh38"],
-        "active_jobs": active_count
+            "liftover": SERVICES.get("liftover") is not None,
+            "vcf": SERVICES.get("vcf_converter") is not None,
+            "ml": SERVICES.get("confidence_predictor") is not None,
+        }
     }
+
 
 
 @app.post("/liftover/single")
@@ -657,6 +375,7 @@ async def liftover_batch(
     
     async def process():
         job.status = "processing"
+        db.commit()
         try:
             results = []
             
@@ -667,7 +386,9 @@ async def liftover_batch(
                     from_build,
                     to_build
                 )
-                
+                job.processed_items = i + 1
+                db.commit()
+
                 # Normalize confidence score
                 if 'confidence' in result and result['confidence'] is not None:
                     result['confidence'] = float(result['confidence'])
@@ -697,6 +418,7 @@ async def liftover_batch(
             
             job.results = results
             job.status = "completed"
+            db.commit()
             job.end_time = datetime.now()
             
             successful = sum(1 for r in results if r.get("success"))

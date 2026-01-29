@@ -270,41 +270,41 @@ def predict_batch(self, features_list: List[np.ndarray]) -> List[float]:
     """Predict confidence scores for batch of features"""
     return [self.predict_confidence(features) for features in features_list]
 
-    def interpret_confidence(self, confidence: float) -> Dict[str, Any]:
-        """
-        Interpret ML confidence score with clinical recommendations
+def interpret_confidence(self, confidence: float) -> Dict[str, Any]:
+    """
+    Interpret ML confidence score with clinical recommendations
         
-        Args:
-            confidence: Confidence score between 0 and 1
+    Args:
+        confidence: Confidence score between 0 and 1
             
-        Returns:
-            Dictionary with interpretation details
-        """
-        # Normalize to ensure it's between 0 and 1
-        confidence = float(confidence)
-        confidence = max(0.0, min(1.0, confidence))
+    Returns:
+        Dictionary with interpretation details
+    """
+    # Normalize to ensure it's between 0 and 1
+    confidence = float(confidence)
+    confidence = max(0.0, min(1.0, confidence))
         
-        if confidence >= 0.90:
+    if confidence >= 0.90:
             level = "VERY_HIGH"
             interpretation = "Liftover highly reliable for clinical use"
             recommendation = "Suitable for clinical-grade applications"
             color = "green"
-        elif confidence >= 0.70:
+    elif confidence >= 0.70:
             level = "HIGH"
             interpretation = "Liftover reliable for research use"
             recommendation = "Suitable for research applications with standard validation"
             color = "blue"
-        elif confidence >= 0.50:
+    elif confidence >= 0.50:
             level = "MODERATE"
             interpretation = "Liftover acceptable but requires verification"
             recommendation = "Verify with additional validation methods"
             color = "yellow"
-        else:
+    else:
             level = "LOW"
             interpretation = "Liftover uncertain and requires manual review"
             recommendation = "Manual review and alternative validation required"
             color = "red"
-        return {
+    return {
             'confidence_score': confidence,
             'confidence_level': level,
             'interpretation': interpretation,

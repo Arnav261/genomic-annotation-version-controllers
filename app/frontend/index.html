@@ -1,122 +1,114 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Genomic Annotation Version Controllers — Demo</title>
+  <meta charset="utf-8">
+  <title>Genomic Resonance</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <!-- Google Fonts (professional but approachable) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .panel { border: 1px solid #ddd; padding: 12px; margin-bottom: 12px; border-radius: 6px; }
-    pre { background: #f6f8fa; padding: 8px; border-radius: 4px; }
+    :root{
+      --bg:#f7fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    body{ background:var(--bg); margin:0; color:#0f172a; }
+    .container{ max-width:1100px; margin:32px auto; padding:16px; }
+    header{ display:flex; align-items:center; gap:16px; margin-bottom:18px; }
+    header h1{ font-weight:700; margin:0; font-size:1.6rem; }
+    header p{ margin:0; color:var(--muted); font-size:0.95rem; font-family:"Source Serif 4", serif; }
+    .grid{ display:grid; grid-template-columns: 1fr 360px; gap:18px; }
+    .card{ background:var(--card); padding:18px; border-radius:12px; box-shadow:0 4px 18px rgba(2,6,23,0.06); }
+    .muted{ color:var(--muted); font-size:0.95rem; }
+    .button{ background:var(--accent); color:white; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; }
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .result { font-family:monospace; white-space:pre-wrap; margin-top:12px; background:#f1f5f9;padding:10px;border-radius:8px;}
   </style>
 </head>
 <body>
-  <h1>Genomic Annotation Version Controllers — Demo</h1>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Genomic Resonance</h1>
+        <p class="muted">Liftover, VCF conversion and ML-assisted confidence for genomic coordinates</p>
+      </div>
+      <div style="margin-left:auto" class="muted">v4.0</div>
+    </header>
 
-  <div class="panel">
-    <h3>Single liftover</h3>
-    <label>Chromosome: <input id="single-chrom" value="chr1"></label>
-    <label>Pos: <input id="single-pos" value="100000" type="number"></label>
-    <label>From: <input id="single-from" value="hg19"></label>
-    <label>To: <input id="single-to" value="hg38"></label>
-    <label>Fallback UCSC: <input id="single-fallback" type="checkbox"></label>
-    <button id="run-single">Run</button>
-    <div id="single-result"></div>
-  </div>
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h2 style="margin-top:0">1) Single Liftover</h2>
+          <div class="row">
+            <label>Chrom <input id="chrom" value="chr17"/></label>
+            <label>Pos <input id="pos" value="41196312"/></label>
+            <label>From <input id="from" value="hg19"/></label>
+            <label>To <input id="to" value="hg38"/></label>
+            <button class="button" id="run">Run</button>
+          </div>
+          <div id="single-result" class="result"></div>
+        </div>
 
-  <div class="panel">
-    <h3>Batch liftover (CSV/TSV)</h3>
-    <input type="file" id="batch-file" accept=".csv,.tsv,.txt" />
-    <label>From: <input id="batch-from" value="hg19"></label>
-    <label>To: <input id="batch-to" value="hg38"></label>
-    <label>Fallback UCSC: <input id="batch-fallback" type="checkbox"></label>
-    <button id="run-batch">Upload & Run</button>
-    <div id="batch-results"></div>
-  </div>
+        <div style="height:18px"></div>
 
-  <div class="panel">
-    <h3>Conflict resolution demo</h3>
-    <textarea id="example-annotations" rows="6" style="width:100%;">[
-  {"source": "db1", "value": "geneA", "evidence_score": 2.0, "description": "Annotated as geneA (high confidence) by db1"},
-  {"source": "db2", "value": "geneA", "evidence_score": 1.0, "description": "Gene called geneA by db2 mapping"},
-  {"source": "predictorX", "value": "geneB", "evidence_score": 0.5, "description": "Predicted as geneB; low confidence"}
-]</textarea>
-    <div>
-      <button id="run-conflict">Deterministic resolve</button>
-      <button id="run-ai">AI semantic resolve</button>
+        <div class="card">
+          <h2 style="margin-top:0">2) VCF Convert (Upload)</h2>
+          <div class="row">
+            <input type="file" id="vcffile"/>
+            <button class="button" id="upload">Upload & Convert</button>
+          </div>
+          <div id="vcf-result" class="result"></div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="card">
+          <h3 style="margin-top:0">Status</h3>
+          <div id="status" class="muted">Loading...</div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Docs</h3>
+          <div class="muted">Use the API or UI to run liftover and convert VCFs. ML confidence requires a trained model available on the server.</div>
+        </div>
+      </aside>
     </div>
-    <div id="conflict-result"></div>
   </div>
 
-  <div class="panel">
-    <h3>Embeddings / Vector demo (ingest/search)</h3>
-    <textarea id="ingest-text" rows="4" style="width:100%;">[{"id":"sample1","description":"sample annotation text","source":"demo"}]</textarea>
-    <div>
-      <label>Version: <input id="ingest-version" value="demo"></label>
-      <label>Model: <input id="ingest-model" value="sbert"></label>
-      <label>Seq type: 
-        <select id="ingest-seqtype"><option value="text">text</option><option value="protein">protein</option><option value="dna">dna</option></select>
-      </label>
-      <button id="run-ingest">Ingest</button>
-    </div>
-    <div>
-      <input id="search-query" placeholder="search text or sequence" style="width:60%">
-      <button id="run-search">Search</button>
-    </div>
-    <div id="embed-results"></div>
-  </div>
-
-<script>
-// Replace the existing run-ai handler with the code below
-function fmtPercent(raw) {
-  if (raw === null || raw === undefined) return "n/a";
-  let v = Number(raw);
-  if (Number.isNaN(v)) return "n/a";
-  // If the server returned e.g. a raw cosine in [-1,1], map to [0,1]
-  if (v < -1 || v > 1) {
-    // if it's >1 and looks like a percent (e.g., 3232397), assume it was an erroneous percent and interpret conservatively
-    // but clamp to 1.0 max
-    v = Math.min(Math.max(v, 0.0), 1.0);
-  } else if (v >= -1 && v <= 1) {
-    // likely a fraction or cosine; if in [-1,1], assume fraction/cosine: map to [0,1] where appropriate
-    // if value is non-negative assume it's already a fraction; if negative treat as 0 fraction
-    if (v < 0) v = 0;
-    // if value is in [0,1], keep as fraction
+  <script>
+  const base = "";
+  async function runSingle(){
+    const chrom = document.getElementById('chrom').value;
+    const pos = document.getElementById('pos').value;
+    const from = document.getElementById('from').value;
+    const to = document.getElementById('to').value;
+    const res = await fetch(`${base}/liftover/single?chrom=${encodeURIComponent(chrom)}&pos=${pos}&from_build=${from}&to_build=${to}`, {method:'POST', headers:{'X-API-Key': localStorage.getItem('api_key')||''}});
+    const json = await res.json();
+    document.getElementById('single-result').textContent = JSON.stringify(json, null, 2);
   }
-  // Convert fraction to percent and clamp
-  let pct = Math.round(Math.min(Math.max(v, 0.0), 1.0) * 10000) / 100; // 2 decimal places
-  return pct.toFixed(2) + "%";
-}
+  document.getElementById('run').onclick = runSingle;
 
-document.getElementById('run-ai').addEventListener('click', async () => {
-  let anns;
-  try {
-    anns = JSON.parse(document.getElementById('ai-annotations').value);
-  } catch (e) {
-    alert('Invalid annotations JSON');
-    return;
+  document.getElementById('upload').onclick = async () => {
+    const f = document.getElementById('vcffile').files[0];
+    if(!f){ alert('Select a VCF file'); return; }
+    const fd = new FormData();
+    fd.append('file', f);
+    const res = await fetch(`${base}/vcf/convert?from_build=hg19&to_build=hg38`, {method:'POST', body:fd, headers:{'X-API-Key': localStorage.getItem('api_key')||''}});
+    const json = await res.json();
+    document.getElementById('vcf-result').textContent = JSON.stringify(json, null, 2);
   }
-  const model = document.getElementById('ai-model').value;
-  const sim_threshold = parseFloat(document.getElementById('ai-threshold').value);
-  const prefer_sbert = document.getElementById('ai-prefer-sbert').checked;
-  document.getElementById('ai-result').innerText = 'Running (this may take a few seconds while model loads)...';
-  const payload = {annotations: anns, model: model, sim_threshold: sim_threshold, prefer_sbert: prefer_sbert};
-  const res = await fetch('/api/conflict/ai_resolve', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(payload)});
-  const data = await res.json();
-  // pretty print clusters and formatted confidences
-  if (data && data.clusters) {
-    let out = { num_clusters: data.num_clusters, global_entropy: data.global_entropy, consensus: [] };
-    for (const c of data.consensus || []) {
-      out.consensus.push({
-        consensus_value: c.consensus_value,
-        combined_confidence: fmtPercent(c.combined_confidence),
-        cluster_id: c.cluster_id,
-        cluster_size: c.cluster_size,
-        top_sources: c.top_sources
-      });
+
+  // fetch status
+  (async ()=> {
+    try {
+      const r = await fetch(`${base}/health`, {headers:{'X-API-Key': localStorage.getItem('api_key')||''}});
+      const j = await r.json();
+      document.getElementById('status').textContent = JSON.stringify(j, null, 2);
+    } catch(e) {
+      document.getElementById('status').textContent = 'Unable to contact API';
     }
-    document.getElementById('ai-result').innerHTML = `<pre>${JSON.stringify(out, null, 2)}</pre>`;
-  } else {
-    document.getElementById('ai-result').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-  }
-});
-</script>
+  })();
+  </script>
+</body>
+</html>

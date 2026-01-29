@@ -49,20 +49,27 @@ class GenomicFeatures:
     build_to: str
     
     def to_array(self) -> np.ndarray:
-        """Convert to numpy array for ML model"""
+        """
+        Return features in deterministic order matching model training.
+        If you changed training features, keep order consistent.
+        Order used here (example):
+        [chain_score, chain_count, chain_gap_size, gc_content, repeat_density,
+         low_complexity (0/1), sv_overlap (0/1), segdup_overlap (0/1),
+         assembly_gap_distance, historical_success_rate, cross_reference_agreement]
+        """
         return np.array([
-            self.chain_score,
-            float(self.chain_count),
-            float(self.chain_gap_size),
-            self.gc_content,
-            self.repeat_density,
-            float(self.low_complexity),
-            float(self.sv_overlap),
-            float(self.segdup_overlap),
-            float(self.assembly_gap_distance),
-            self.historical_success_rate,
-            self.cross_reference_agreement
-        ])
+            float(self.chain_score or 0.0),
+            float(self.chain_count or 0),
+            float(self.chain_gap_size or 0),
+            float(self.gc_content or 0.0),
+            float(self.repeat_density or 0.0),
+            1.0 if self.low_complexity else 0.0,
+            1.0 if self.sv_overlap else 0.0,
+            1.0 if self.segdup_overlap else 0.0,
+            float(self.assembly_gap_distance or 0),
+            float(self.historical_success_rate or 0.0),
+            float(self.cross_reference_agreement or 0.0),
+        ], dtype=np.float32)
 
 class FeatureExtractor:
     """
