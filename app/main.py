@@ -1336,6 +1336,93 @@ async def semantic_batch(
     background_tasks.add_task(process)
     return {"job_id": job_id, "status_endpoint": f"/job-status/{job_id}"}
 
+@app.post("/batch-submit", response_class=HTMLResponse)
+async def batch_submit_form(
+    batch_text: str = Form(...),
+    batch_from: str = Form(...),
+    batch_to: str = Form(...),
+    batch_ml: bool = Form(False)
+):
+    """Process batch coordinates and return HTML results"""
+    
+    # Parse coordinates
+    lines = batch_text.strip().split('\n')
+    coordinates = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # Support both chr17:41196312 and chr17,41196312
+        parts = line.replace(':', ',').split(',')
+        if len(parts) >= 2:
+            coordinates.append({
+                "chrom": parts[0].strip(),
+                "pos": int(parts[1].strip())
+            })
+    
+    # Process batch
+    results = []
+    for coord in coordinates:
+        try:
+            result = await liftover_coordinate(
+                chrom=coord["chrom"],
+                pos=coord["pos"],
+                from_build=batch_from,
+                to_build=batch_to,
+                include_ml=batch_ml
+            )
+            results.append(result)
+        except Exception as e:
+            results.append({"error": str(e), "input": coord})
+    
+    # Format results as HTML
+    html_results = "<h3>Results:</h3><table border='1'><tr><th>Input</th><th>Output</th><th>Status</th></tr>"
+    for r in results:
+        if "error" in r:
+            html_results += f"<tr><td>{r['input']}</td><td>-</td><td style='color:red'>Error: {r['error']}</td></tr>"
+        else:
+            html_results += f"<tr><td>{r.get('input_chrom')}:{r.get('input_pos')}</td>"
+            html_results += f"<td>{r.get('output_chrom')}:{r.get('output_pos')}</td>"
+            html_results += f"<td style='color:green'>✓ {r.get('method', 'OK')}</td></tr>"
+    html_results += "</table>"
+    
+    return HTMLResponse(content=html_results)
+
+
+@app.post("/semantic-submit", response_class=HTMLResponse)
+async def semantic_submit_form(
+    gene_symbol: str = Form(...),
+    source_db: str = Form("ensembl"),
+    build: str = Form("hg38"),
+    include_variants: bool = Form(False),
+    include_isoforms: bool = Form(False)
+):
+    """Process semantic reconciliation and return HTML results"""
+    
+    try:
+        result = await reconcile_gene(
+            gene_symbol=gene_symbol,
+            source_db=source_db,
+            build=build,
+            include_variants=include_variants,
+            include_isoforms=include_isoforms
+        )
+        
+        # Format as HTML table
+        html = f"<h3>Results for {gene_symbol}:</h3>"
+        html += "<table border='1'><tr><th>Database</th><th>ID</th><th>Coordinates</th></tr>"
+        
+        for db, data in result.items():
+            if isinstance(data, dict):
+                html += f"<tr><td>{db}</td><td>{data.get('id', 'N/A')}</td>"
+                html += f"<td>{data.get('chrom', '?')}:{data.get('start', '?')}-{data.get('end', '?')}</td></tr>"
+        
+        html += "</table>"
+        return HTMLResponse(content=html)
+        
+    except Exception as e:
+        return HTMLResponse(content=f"<p style='color:red'>Error: {str(e)}</p>")
+
 @app.on_event("startup")
 async def startup_event():
     """Application startup"""
