@@ -92,7 +92,7 @@ def initialize_services() -> bool:
     Backwards-compatible wrapper that initializes services and returns True/False.
     """
     try:
-        _init_services()
+        init_services()
         return True
     except Exception as e:
         logger.exception("Service initialization failed: %s", e)
