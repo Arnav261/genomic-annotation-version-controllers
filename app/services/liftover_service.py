@@ -32,25 +32,17 @@ class ChainFileManager:
         self.chain_urls = settings.CHAIN_FILE_URLS
         self.lifters_cache: Dict[str, LiftOver] = {}
     
-    def _normalize_build(self, build: str) -> str:
-        """Normalize build name to UCSC format"""
-        build = build.upper().replace("GRCH", "HG")
-        mapping = {
-            "HG37": "hg19",
-            "HG38": "hg38",
-            "HG18": "hg18",
-            "HG19": "hg19",
-        }
-        return mapping.get(build, build.lower())
-    
-    def _get_chain_key(self, from_build: str, to_build: str) -> str:
-        """Get chain file key matching UCSC format: hg19ToHg38"""
-        from_norm = self._normalize_build(from_build)
-        to_norm = self._normalize_build(to_build)
-        
-        to_capitalized = to_norm[0].upper() + to_norm[1:]
-        
-        return f"{from_norm}To{to_capitalized}"
+    def _normalize_build(build: str) -> str:
+        b = str(build).lower().replace("grch", "hg")
+        mapping = {"hg37": "hg19", "hg38": "hg38", "hg19": "hg19"}
+        return mapping.get(b, b)
+
+    def _chain_key(from_build: str, to_build: str) -> str:
+        f = self._normalize_build(from_build)
+        t = self._normalize_build(to_build)
+        def cap(s): return s[:2] + s[2:].capitalize()
+        # e.g., returns "Hg19ToHg38"
+        return f"{cap(f)}To{cap(t)}"
     
     def download_chain_file(self, chain_key: str, force: bool = False) -> Path:
         """Download chain file if not present"""

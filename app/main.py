@@ -17,7 +17,7 @@ import csv
 from io import StringIO
 import numpy as np
 
-SERVICES: Dict[str, Any] = {}
+SERVICES_AVAILABLE = initialize_services()
 startup_time = time.time()
 
 
@@ -86,9 +86,17 @@ def init_services():
         SERVICES["vcf_converter"] = VCFConverter(SERVICES["liftover"])
     else:
         SERVICES["vcf_converter"] = None
-    
-SERVICES_AVAILABLE = initialize_services()
 
+def initialize_services() -> bool:
+    """
+    Backwards-compatible wrapper that initializes services and returns True/False.
+    """
+    try:
+        _init_services()
+        return True
+    except Exception as e:
+        logger.exception("Service initialization failed: %s", e)
+        return False
 # Job management
 class BatchJob:
     """Background job tracker"""
@@ -603,6 +611,240 @@ async def startup_event():
     else:
         logger.warning("Operating in limited mode")
 
+@app.post("/vcf/convert")
+async def convert_vcf_file(
+    file: UploadFile = File(..., description="VCF file to convert"),
+    from_build: str = Query("hg19", description="Source assembly"),
+    to_build: str = Query("hg38", description="Target assembly"),
+    keep_failed: bool = Query(False, description="Include variants that failed liftover"),
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Convert VCF file between genome assemblies.
+    
+    Uploads VCF file and converts all variants to target assembly.
+    Preserves sample information, genotypes, and INFO fields.
+    
+    Processing is asynchronous. Use job_id to check progress and download results.
+    """
+    if not SERVICES_AVAILABLE or not vcf_converter:
+        raise HTTPException(status_code=503, detail="VCF converter unavailable")
+    
+    # Validate file extension
+    if not file.filename.endswith(('.vcf', '.vcf.gz')):
+        raise HTTPException(status_code=400, detail="File must be VCF format (.vcf or .vcf.gz)")
+    
+    content = await file.read()
+    vcf_content = content.decode('utf-8')
+    
+    job_id = uuid.uuid4().hex[:8]
+    job = BatchJob(job_id, 1, "vcf_conversion")
+    job.metadata["original_filename"] = file.filename
+    job_storage[job_id] = job
+    
+    async def process():
+        job.status = "processing"
+        try:
+            result = vcf_converter.convert_vcf(vcf_content, from_build, to_build, keep_failed)
+            job.results = [result]
+            job.processed_items = 1
+            job.status = "completed"
+            job.end_time = datetime.now()
+            job.metadata.update(result["statistics"])
+            
+            if result["statistics"]["failed_conversion"] > 0:
+                job.warnings.append(
+                    f"{result['statistics']['failed_conversion']} variants failed conversion"
+                )
+        except Exception as e:
+            job.status = "failed"
+            job.errors.append(str(e))
+            logger.error(f"VCF conversion failed: {e}")
+    
+    background_tasks.add_task(process)
+    
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "original_filename": file.filename,
+        "from_build": from_build,
+        "to_build": to_build,
+        "status_endpoint": f"/job-status/{job_id}",
+        "download_endpoint": f"/vcf/download/{job_id}"
+    }
+
+@app.get("/vcf/download/{job_id}")
+async def download_converted_vcf(job_id: str):
+    """Download converted VCF file"""
+    job = job_storage.get(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Job not completed. Current status: {job.status}"
+        )
+    
+    if not job.results:
+        raise HTTPException(status_code=500, detail="No results available")
+    
+    vcf_content = job.results[0]["vcf_content"]
+    original_filename = job.metadata.get("original_filename", "input.vcf")
+    output_filename = f"converted_{original_filename}"
+    
+    return PlainTextResponse(
+        vcf_content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f"attachment; filename={output_filename}"
+        }
+    )
+
+@app.post("/vcf/validate")
+async def validate_vcf_file(
+    file: UploadFile = File(..., description="VCF file to validate")
+):
+    """
+    Validate VCF file format compliance.
+    
+    Checks for required headers, column structure, and variant line formatting.
+    """
+    if not SERVICES_AVAILABLE or not vcf_converter:
+        raise HTTPException(status_code=503, detail="VCF validator unavailable")
+    
+    content = await file.read()
+    vcf_content = content.decode('utf-8')
+    
+    validation = vcf_converter.validate_vcf(vcf_content)
+    
+    return {
+        "filename": file.filename,
+        "validation_result": validation,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+
+@app.post("/semantic/reconcile")
+async def reconcile_semantic_annotations(
+    gene_symbol: str = Query(..., description="Gene symbol"),
+    annotations: List[Dict] = None,
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Reconcile conflicting gene descriptions using semantic analysis.
+    
+    Request body format:
+    [
+        {
+            "description": "BRCA1 DNA repair associated",
+            "source": "NCBI",
+            "biological_process": ["DNA repair"],
+            "confidence": 0.95
+        },
+        {
+            "description": "breast cancer type 1 susceptibility protein",
+            "source": "UniProt",
+            "molecular_function": ["protein binding"],
+            "confidence": 0.97
+        }
+    ]
+    
+    Returns reconciled description with consensus biological terms.
+    """
+    if not SERVICES_AVAILABLE or not semantic_engine:
+        raise HTTPException(status_code=503, detail="Semantic reconciliation unavailable")
+    
+    if not annotations or len(annotations) == 0:
+        raise HTTPException(status_code=400, detail="No annotations provided")
+    
+    # Convert to SemanticAnnotation objects
+    from app.services.semantic_reconciliation import SemanticAnnotation
+    
+    semantic_annotations = []
+    for ann in annotations:
+        semantic_ann = SemanticAnnotation(
+            gene_symbol=gene_symbol,
+            description=ann.get("description", ""),
+            source=ann.get("source", "Unknown"),
+            biological_process=ann.get("biological_process"),
+            molecular_function=ann.get("molecular_function"),
+            cellular_component=ann.get("cellular_component"),
+            protein_domains=ann.get("protein_domains"),
+            confidence=ann.get("confidence", 0.8)
+        )
+        semantic_annotations.append(semantic_ann)
+    
+    try:
+        result = semantic_engine.reconcile_annotations(gene_symbol, semantic_annotations)
+        return result
+    except Exception as e:
+        logger.error(f"Semantic reconciliation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/semantic/batch-reconcile")
+async def batch_reconcile_semantic(
+    gene_annotations: Dict[str, List[Dict]],
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Batch reconciliation for multiple genes.
+    
+    Request body maps gene symbols to annotation lists.
+    Processing is asynchronous.
+    """
+    if not SERVICES_AVAILABLE or not semantic_engine:
+        raise HTTPException(status_code=503, detail="Semantic reconciliation unavailable")
+    
+    job_id = uuid.uuid4().hex[:8]
+    job = BatchJob(job_id, len(gene_annotations), "semantic_reconciliation")
+    job_storage[job_id] = job
+    
+    async def process():
+        job.status = "processing"
+        try:
+            from app.services.semantic_reconciliation import SemanticAnnotation
+            
+            # Convert all annotations
+            converted = {}
+            for gene, anns in gene_annotations.items():
+                semantic_anns = []
+                for ann in anns:
+                    semantic_ann = SemanticAnnotation(
+                        gene_symbol=gene,
+                        description=ann.get("description", ""),
+                        source=ann.get("source", "Unknown"),
+                        biological_process=ann.get("biological_process"),
+                        molecular_function=ann.get("molecular_function"),
+                        confidence=ann.get("confidence", 0.8)
+                    )
+                    semantic_anns.append(semantic_ann)
+                converted[gene] = semantic_anns
+            
+            results = semantic_engine.batch_reconcile(converted)
+            report = semantic_engine.generate_reconciliation_report(results)
+            
+            job.results = list(results.values())
+            job.processed_items = len(results)
+            job.status = "completed"
+            job.end_time = datetime.now()
+            job.metadata = report
+            
+        except Exception as e:
+            job.status = "failed"
+            job.errors.append(str(e))
+            logger.error(f"Batch semantic reconciliation failed: {e}")
+    
+    background_tasks.add_task(process)
+    
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "genes_to_process": len(gene_annotations),
+        "status_endpoint": f"/job-status/{job_id}"
+    }
 
 if __name__ == "__main__":
     import uvicorn
