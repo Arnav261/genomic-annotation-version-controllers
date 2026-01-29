@@ -16,8 +16,12 @@ import json
 import csv
 from io import StringIO
 import numpy as np
-
-SERVICES_AVAILABLE = initialize_services()
+from app.config import settings
+from app.services.liftover_service import RealLiftover, EnsemblLiftover
+from app.services.feature_extractor import FeatureExtractor
+from app.services.confidence_predictor import ConfidencePredictor
+from app.services.vcf_converter import VCFConverter
+from app.services.semantic_reconciliation import SemanticReconciliationEngine
 startup_time = time.time()
 
 
@@ -97,7 +101,7 @@ def initialize_services() -> bool:
     except Exception as e:
         logger.exception("Service initialization failed: %s", e)
         return False
-# Job management
+SERVICES_AVAILABLE = initialize_services()
 class BatchJob:
     """Background job tracker"""
     def __init__(self, job_id: str, total_items: int, job_type: str):
