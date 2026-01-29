@@ -909,7 +909,7 @@ Or upload a file below..."></textarea>
     </div>
 
     <div class="section">
-        <h2>⚡ Platform Features</h2>
+        <h2> Platform Features</h2>
         <ul class="feature-list">
             <li>ML-based confidence prediction</li>
             <li>NCBI RefSeq integration & validation</li>
