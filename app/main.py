@@ -6,7 +6,7 @@ Bioinformatics Platform
 from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, UploadFile, File, Query, Path as FastAPIPath
 from fastapi.templating import Jinja2Templates
 from fastapi import Form
-from Path import Path
+from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, HTMLResponse, PlainTextResponse
 from typing import List, Dict, Any, Optional
