@@ -16,6 +16,7 @@ import json
 import csv
 from io import StringIO
 import numpy as np
+from app.database import SessionLocal, Job, APIKey
 
 # Configure logging FIRST
 logging.basicConfig(
@@ -179,9 +180,8 @@ LANDING_PAGE_TEMPLATE_PATH = Path(__file__).parent / "templates" / "landing_page
 def landing_page():
     db = SessionLocal()
     try:
-        active_jobs = db.query(Job).filter(
-            Job.status.in_(["queued", "processing"])
-        ).count()
+        recent = db.query(Job).order_by(Job.created_at.desc()).limit(10).all()
+        return {"recent_jobs": [ {"job_id": j.job_id, "status": j.status} for j in recent]}
     except:
         active_jobs = 0
     finally:
@@ -592,7 +592,7 @@ footer a {{
 <body>
 
 <header>
-<h1>🧬 RESONANCE</h1>
+<h1> RESONANCE</h1>
 <p>Professional Genomic Coordinate Liftover & Validation Platform</p>
 <div style="margin-top: 1rem;">
     <span class="status-badge {ml_status_class}">ML Confidence: {ml_status}</span>
@@ -875,7 +875,7 @@ Or upload a file below..."></textarea>
             <label for="semantic-transcripts">Map to all transcript isoforms</label>
         </div>
 
-        <button onclick="runSemanticReconciliation()">🔍 Reconcile Annotation</button>
+        <button onclick="runSemanticReconciliation()"> Reconcile Annotation</button>
 
         <pre id="semantic-output" style="display: none;"></pre>
     </div>
@@ -895,7 +895,7 @@ Or upload a file below..."></textarea>
             <li><code>GET /export/{{job_id}}/{{format}}</code> - Download results</li>
             <li><code>GET /health</code> - System health check</li>
         </ul>
-        <button class="btn-secondary" onclick="window.location.href='/docs'">📖 View Full API Docs</button>
+        <button class="btn-secondary" onclick="window.location.href='/docs'"> View Full API Docs</button>
     </div>
 
     <div class="section">
@@ -1146,6 +1146,31 @@ async def liftover_single(
         logger.error(f"Liftover failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/liftover/region")
+def liftover_region(
+    chrom: str = Query(...),
+    start: int = Query(..., ge=1),
+    end: int = Query(..., ge=1),
+    from_build: str = Query("hg19"),
+    to_build: str = Query("hg38"),
+):
+    """Convert genomic region (start and end coordinates)"""
+    if not SERVICES.get("liftover"):
+        raise HTTPException(status_code=503, detail="Liftover service unavailable")
+    if start >= end:
+        raise HTTPException(status_code=400, detail="Start must be less than end")
+    try:
+        # Attempt to use liftover service's region method when available, else lift each position
+        liftover = SERVICES["liftover"]
+        if hasattr(liftover, "convert_region"):
+            return liftover.convert_region(chrom, start, end, from_build, to_build)
+        # fallback: liftover start and end individually
+        start_r = liftover.convert_coordinate(chrom, start, from_build, to_build)
+        end_r = liftover.convert_coordinate(chrom, end, from_build, to_build)
+        return {"start": start_r, "end": end_r}
+    except Exception as e:
+        logger.exception("Region liftover failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/job-status/{job_id}")
 def get_job_status(job_id: str):
@@ -1184,6 +1209,37 @@ def get_job_status(job_id: str):
     
     return response
 
+@app.post("/semantic/reconcile")
+def semantic_reconcile(
+    gene_symbol: str = Query(...),
+    annotations: List[Dict] = None,
+):
+    """
+    Reconcile conflicting gene descriptions or annotations.
+    If a semantic engine is present (SERVICES['semantic_engine']), call it;
+    otherwise return a simple majority/consensus summary.
+    """
+    if not annotations:
+        raise HTTPException(status_code=400, detail="No annotations provided")
+    # Use semantic engine if available
+    if SERVICES.get("semantic_engine"):
+        try:
+            return SERVICES["semantic_engine"].reconcile_annotations(gene_symbol, annotations)
+        except Exception as e:
+            logger.exception("Semantic engine failed; falling back to simple consensus")
+    # Simple fallback: pick most common description and list sources
+    descs = {}
+    for ann in annotations:
+        desc = ann.get("description", "").strip()
+        if not desc:
+            continue
+        descs.setdefault(desc, []).append(ann.get("source", "unknown"))
+    if not descs:
+        return {"gene": gene_symbol, "consensus": None, "notes": "No usable descriptions"}
+    # choose description with most sources
+    consensus_desc = max(descs.items(), key=lambda kv: len(kv[1]))[0]
+    sources = descs[consensus_desc]
+    return {"gene": gene_symbol, "consensus_description": consensus_desc, "sources": sources, "method": "simple_majority_fallback"}
 
 @app.on_event("startup")
 async def startup_event():

@@ -1,114 +1,60 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Genomic Resonance</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Google Fonts (professional but approachable) -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --bg:#f7fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
-      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    }
-    body{ background:var(--bg); margin:0; color:#0f172a; }
-    .container{ max-width:1100px; margin:32px auto; padding:16px; }
-    header{ display:flex; align-items:center; gap:16px; margin-bottom:18px; }
-    header h1{ font-weight:700; margin:0; font-size:1.6rem; }
-    header p{ margin:0; color:var(--muted); font-size:0.95rem; font-family:"Source Serif 4", serif; }
-    .grid{ display:grid; grid-template-columns: 1fr 360px; gap:18px; }
-    .card{ background:var(--card); padding:18px; border-radius:12px; box-shadow:0 4px 18px rgba(2,6,23,0.06); }
-    .muted{ color:var(--muted); font-size:0.95rem; }
-    .button{ background:var(--accent); color:white; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; }
-    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .result { font-family:monospace; white-space:pre-wrap; margin-top:12px; background:#f1f5f9;padding:10px;border-radius:8px;}
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <div>
-        <h1>Genomic Resonance</h1>
-        <p class="muted">Liftover, VCF conversion and ML-assisted confidence for genomic coordinates</p>
-      </div>
-      <div style="margin-left:auto" class="muted">v4.0</div>
-    </header>
+const base = ""; // keep empty if same origin
+const API_KEY = localStorage.getItem('api_key') || '';
 
-    <div class="grid">
-      <div>
-        <div class="card">
-          <h2 style="margin-top:0">1) Single Liftover</h2>
-          <div class="row">
-            <label>Chrom <input id="chrom" value="chr17"/></label>
-            <label>Pos <input id="pos" value="41196312"/></label>
-            <label>From <input id="from" value="hg19"/></label>
-            <label>To <input id="to" value="hg38"/></label>
-            <button class="button" id="run">Run</button>
-          </div>
-          <div id="single-result" class="result"></div>
-        </div>
+async function runSingle() {
+  const chrom = document.getElementById('chrom').value;
+  const pos = document.getElementById('pos').value;
+  const from = document.getElementById('from').value;
+  const to = document.getElementById('to').value;
+  const url = `${base}/liftover/single?chrom=${encodeURIComponent(chrom)}&pos=${encodeURIComponent(pos)}&from_build=${encodeURIComponent(from)}&to_build=${encodeURIComponent(to)}`;
+  const res = await fetch(url, { method: 'POST', headers: { 'X-API-Key': API_KEY } });
+  const json = await res.json();
+  document.getElementById('single-result').textContent = JSON.stringify(json, null, 2);
+}
 
-        <div style="height:18px"></div>
-
-        <div class="card">
-          <h2 style="margin-top:0">2) VCF Convert (Upload)</h2>
-          <div class="row">
-            <input type="file" id="vcffile"/>
-            <button class="button" id="upload">Upload & Convert</button>
-          </div>
-          <div id="vcf-result" class="result"></div>
-        </div>
-      </div>
-
-      <aside>
-        <div class="card">
-          <h3 style="margin-top:0">Status</h3>
-          <div id="status" class="muted">Loading...</div>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="card">
-          <h3 style="margin-top:0">Docs</h3>
-          <div class="muted">Use the API or UI to run liftover and convert VCFs. ML confidence requires a trained model available on the server.</div>
-        </div>
-      </aside>
-    </div>
-  </div>
-
-  <script>
-  const base = "";
-  async function runSingle(){
-    const chrom = document.getElementById('chrom').value;
-    const pos = document.getElementById('pos').value;
-    const from = document.getElementById('from').value;
-    const to = document.getElementById('to').value;
-    const res = await fetch(`${base}/liftover/single?chrom=${encodeURIComponent(chrom)}&pos=${pos}&from_build=${from}&to_build=${to}`, {method:'POST', headers:{'X-API-Key': localStorage.getItem('api_key')||''}});
-    const json = await res.json();
-    document.getElementById('single-result').textContent = JSON.stringify(json, null, 2);
+async function runBatch() {
+  // read plain text or simple JSON from a textarea, or build from a small file input
+  const txt = document.getElementById('batch-input').value;
+  let coords;
+  try {
+    coords = JSON.parse(txt);
+  } catch (e) {
+    alert('Batch input must be JSON array like: [{"chrom":"chr1","pos":123},{"chrom":"chr2","pos":456}]');
+    return;
   }
-  document.getElementById('run').onclick = runSingle;
+  const res = await fetch(`${base}/liftover/batch?from_build=hg19&to_build=hg38`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+    body: JSON.stringify(coords)
+  });
+  const json = await res.json();
+  document.getElementById('batch-result').textContent = JSON.stringify(json, null, 2);
+}
 
-  document.getElementById('upload').onclick = async () => {
-    const f = document.getElementById('vcffile').files[0];
-    if(!f){ alert('Select a VCF file'); return; }
-    const fd = new FormData();
-    fd.append('file', f);
-    const res = await fetch(`${base}/vcf/convert?from_build=hg19&to_build=hg38`, {method:'POST', body:fd, headers:{'X-API-Key': localStorage.getItem('api_key')||''}});
-    const json = await res.json();
-    document.getElementById('vcf-result').textContent = JSON.stringify(json, null, 2);
-  }
+async function uploadVCF() {
+  const f = document.getElementById('vcffile').files[0];
+  if (!f) { alert('Select file'); return; }
+  const fd = new FormData();
+  fd.append('file', f);
+  const res = await fetch(`${base}/vcf/convert?from_build=hg19&to_build=hg38`, {
+    method: 'POST',
+    headers: { 'X-API-Key': API_KEY },
+    body: fd
+  });
+  const json = await res.json();
+  document.getElementById('vcf-result').textContent = JSON.stringify(json, null, 2);
+}
 
-  // fetch status
-  (async ()=> {
-    try {
-      const r = await fetch(`${base}/health`, {headers:{'X-API-Key': localStorage.getItem('api_key')||''}});
-      const j = await r.json();
-      document.getElementById('status').textContent = JSON.stringify(j, null, 2);
-    } catch(e) {
-      document.getElementById('status').textContent = 'Unable to contact API';
-    }
-  })();
-  </script>
-</body>
-</html>
+async function reconcileSemantic() {
+  const gene = document.getElementById('sem-gene').value;
+  const annsText = document.getElementById('sem-anns').value;
+  let anns;
+  try { anns = JSON.parse(annsText); } catch(e){ alert('annotations must be JSON array'); return; }
+  const res = await fetch(`${base}/semantic/reconcile?gene_symbol=${encodeURIComponent(gene)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+    body: JSON.stringify(anns)
+  });
+  const json = await res.json();
+  document.getElementById('semantic-result').textContent = JSON.stringify(json, null, 2);
+}

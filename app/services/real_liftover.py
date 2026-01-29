@@ -5,7 +5,7 @@ This actually works with real genomic coordinates!
 import os
 import logging
 from typing import Dict, List, Optional, Tuple
-from pathlib import Path as Pathlib
+from pathlib import Path
 import urllib.request
 import gzip
 import shutil
@@ -27,7 +27,7 @@ class RealLiftoverService:
     """
     
     def __init__(self, chain_dir: str = "./data/chains"):
-        self.chain_dir = Pathlib(chain_dir)
+        self.chain_dir = Path(chain_dir)
         self.chain_dir.mkdir(parents=True, exist_ok=True)
         self.lifters = {}
         self.chain_urls = {
