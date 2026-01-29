@@ -304,7 +304,7 @@ def health():
 
 
 
-@app.post("/liftover/single")
+@app.api_route("/liftover/single", methods=["GET", "POST"])
 async def liftover_single(
     chrom: str = Query(...),
     pos: int = Query(..., ge=1),
