@@ -1,9 +1,9 @@
 """
 Genomic Coordinate Liftover Service - Resonance
-Professional Research-Grade Bioinformatics Platform
+Bioinformatics Platform
 """
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query, Path as FastAPIPath
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Form, UploadFile, File, Query, Path as FastAPIPath
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, HTMLResponse, PlainTextResponse
 from typing import List, Dict, Any, Optional
