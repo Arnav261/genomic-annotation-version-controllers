@@ -25,6 +25,15 @@
     .grid{ display:grid; grid-template-columns: 1fr 380px; gap:18px; align-items:start; }
     .card{ background:var(--card); padding:16px; border-radius:var(--radius); box-shadow:0 6px 22px rgba(16,24,40,0.06); }
     .card h2{ margin:0 0 10px 0; font-size:1.05rem; }
+    .status-available {
+      color: var(--accent-2);
+      font-weight: 600;
+      }
+    .status-unavailable {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
     .muted{ color:var(--muted); font-size:0.95rem; }
     .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
     input[type="text"], input[type="number"], select, textarea {
@@ -145,14 +154,44 @@
 
       <aside>
         <div class="card status-box">
-          <h3 style="margin-top:0">System Status</h3>
-          <div class="small muted">Live status & quick actions</div>
-          <div style="margin-top:10px;">
-            <button class="button" id="refresh-health">Refresh</button>
-            <button class="button secondary" id="list-services">Services</button>
-          </div>
-          <div style="margin-top:10px;" id="health-panel" class="result">Loading health...</div>
-        </div>
+  <h3 style="margin-top:0">System Status</h3>
+  <div class="small muted">Server snapshot at load</div>
+
+  <div style="margin-top:10px;" class="flex-col">
+    <div class="row">
+      <strong>Active jobs:</strong>
+      <span>{{ active_jobs }}</span>
+    </div>
+
+    <div class="row">
+      <strong>Operational services:</strong>
+      <span>{{ operational_services }}</span>
+    </div>
+
+    <div class="row">
+      <strong>ML Confidence:</strong>
+      <span class="{{ ml_status_class }}">{{ ml_status }}</span>
+    </div>
+
+    <div class="row">
+      <strong>VCF Converter:</strong>
+      <span class="{{ vcf_status_class }}">{{ vcf_status }}</span>
+    </div>
+  </div>
+
+  <hr style="margin:12px 0;border:none;border-top:1px solid #eef2ff;">
+
+  <div class="small muted">Live status & quick actions</div>
+  <div style="margin-top:10px;">
+    <button class="button" id="refresh-health">Refresh</button>
+    <button class="button secondary" id="list-services">Services</button>
+  </div>
+
+  <div style="margin-top:10px;" id="health-panel" class="result">
+    Loading health...
+  </div>
+</div>
+
 
         <div style="height:12px;"></div>
 

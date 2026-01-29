@@ -3,7 +3,9 @@ Genomic Coordinate Liftover Service - Resonance
 Bioinformatics Platform
 """
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Form, UploadFile, File, Query, Path as FastAPIPath
+from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, UploadFile, File, Query, Path as FastAPIPath
+from fastapi.templating import Jinja2Templates
+from fastapi import Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, HTMLResponse, PlainTextResponse
 from typing import List, Dict, Any, Optional
@@ -19,6 +21,8 @@ import numpy as np
 from app.database import SessionLocal, Job, APIKey
 from app.services.semantic_reconciliation import SemanticReconciliationEngine, SemanticAnnotation
 
+
+templates = Jinja2Templates(directory="templates")
 # Configure logging FIRST
 logging.basicConfig(
     level=logging.INFO,
@@ -187,44 +191,44 @@ from pathlib import Path
 LANDING_PAGE_TEMPLATE_PATH = Path(__file__).parent / "templates" / "landing_page.html"
 
 @app.get("/", response_class=HTMLResponse)
-def landing_page():
+def landing_page(request: Request):
     db = SessionLocal()
     try:
         recent = db.query(Job).order_by(Job.created_at.desc()).limit(10).all()
         active_jobs = len(recent)
-    except:
+    except Exception:
         active_jobs = 0
     finally:
         db.close()
 
-    core_services = ['liftover', 'vcf_converter', 'confidence_predictor', 'feature_extractor', 'semantic_engine']
-    operational_count = sum(1 for key in core_services if SERVICES.get(key) is not None)
-    
-    # Status classes for badges
-    ml_status_class = "status-available" if SERVICES.get("confidence_predictor") else "status-unavailable"
-    ml_status = "Available" if SERVICES.get("confidence_predictor") else "Unavailable"
-    vcf_status_class = "status-available" if SERVICES.get("vcf_converter") else "status-unavailable"
-    vcf_status = "Enabled" if SERVICES.get("vcf_converter") else "Disabled"
+    core_services = [
+        "liftover",
+        "vcf_converter",
+        "confidence_predictor",
+        "feature_extractor",
+        "semantic_engine",
+    ]
 
-    # Try to load template file, fall back to inline HTML if not found
-    try:
-        with open(LANDING_PAGE_TEMPLATE_PATH, 'r') as f:
-            template = f.read()
-    except FileNotFoundError:
-        # Fall back to comprehensive inline HTML
-        template = COMPREHENSIVE_LANDING_PAGE_HTML
-    
-    # Format with variables
-    html = template.format(
-        active_jobs=active_jobs,
-        operational_services=operational_count,
-        ml_status_class=ml_status_class,
-        ml_status=ml_status,
-        vcf_status_class=vcf_status_class,
-        vcf_status=vcf_status
+    operational_count = sum(
+        1 for key in core_services if SERVICES.get(key) is not None
     )
-    
-    return HTMLResponse(html)
+
+    ml_available = SERVICES.get("confidence_predictor") is not None
+    vcf_available = SERVICES.get("vcf_converter") is not None
+
+    return templates.TemplateResponse(
+        "landing.html",
+        {
+            "request": request,
+            "active_jobs": active_jobs,
+            "operational_services": operational_count,
+            "ml_status_class": "status-available" if ml_available else "status-unavailable",
+            "ml_status": "Available" if ml_available else "Unavailable",
+            "vcf_status_class": "status-available" if vcf_available else "status-unavailable",
+            "vcf_status": "Enabled" if vcf_available else "Disabled",
+        },
+    )
+
 
 
 # Comprehensive inline landing page HTML (used if template file not found)
