@@ -181,7 +181,7 @@ def landing_page():
     db = SessionLocal()
     try:
         recent = db.query(Job).order_by(Job.created_at.desc()).limit(10).all()
-        return {"recent_jobs": [ {"job_id": j.job_id, "status": j.status} for j in recent]}
+        active_jobs = len(recent)
     except:
         active_jobs = 0
     finally:
