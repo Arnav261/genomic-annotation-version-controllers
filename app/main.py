@@ -18,6 +18,10 @@ from io import StringIO
 from app.database import SessionLocal, Job
 import numpy as np
 from app.config import settings
+try:
+    from app.ml.feature_extractor import FeatureExtractor
+except ImportError:
+    FeatureExtractor = None
 startup_time = time.time()
 
 
@@ -128,11 +132,6 @@ class BatchJob:
             "warnings": self.warnings,
             "metadata": self.metadata
         }
-
-try:
-    from app.ml.feature_extractor import FeatureExtractor
-except ImportError:
-    FeatureExtractor = None
 
 
 @app.get("/", response_class=HTMLResponse)
