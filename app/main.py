@@ -15,27 +15,34 @@ import os
 import json
 import csv
 from io import StringIO
-from app.database import SessionLocal, Job
 import numpy as np
-from app.config import settings
-try:
-    from app.services.feature_extractor import FeatureExtractor
-except ImportError:
-    FeatureExtractor = None
 
-try:
-    from app.services.confidence_predictor import ConfidencePredictor
-except ImportError:
-    ConfidencePredictor = None
-startup_time = time.time()
-
-
-# Configure logging
+# Configure logging FIRST
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Import config and database
+from app.config import settings
+from app.database import SessionLocal, APIKey, Job
+
+# Import services
+try:
+    from app.services.real_liftover import RealLiftoverService
+    from app.services.ensembl_liftover import EnsemblLiftover
+    from app.services.feature_extractor import FeatureExtractor
+    from app.services.confidence_predictor import ConfidencePredictor
+    from app.services.vcf_converter import VCFConverter
+    HAS_SERVICES = True
+except ImportError as e:
+    logger.error(f"Failed to import services: {e}")
+    HAS_SERVICES = False
+
+SERVICES: Dict[str, Any] = {}
+startup_time = time.time()
+job_storage: Dict[str, Any] = {}
 
 # Initialize FastAPI
 app = FastAPI(
@@ -56,58 +63,79 @@ app.add_middleware(
 )
 
 
-job_storage: Dict[str, Any] = {}
-SERVICES: Dict[str, Any] = {}
-
-def init_services():
+def initialize_services():
+    """Initialize all services at startup"""
+    global SERVICES
+    
+    logger.info("Initializing services...")
+    
+    if not HAS_SERVICES:
+        logger.error("Services not available - imports failed")
+        return False
+    
     try:
-        SERVICES["chain_liftover"] = RealLiftover(chain_dir=str(settings.CHAIN_DIR))
-    except Exception:
-        SERVICES["chain_liftover"] = None
-
-    try:
-        SERVICES["liftover"] = EnsemblLiftover(
-            fallback=SERVICES.get("chain_liftover")
-        )
-    except Exception:
-        SERVICES["liftover"] = SERVICES.get("chain_liftover")
-
-    if FeatureExtractor is not None:
+        # Initialize chain-based liftover
+        try:
+            SERVICES["chain_liftover"] = RealLiftoverService(chain_dir=str(settings.CHAIN_DIR))
+            logger.info("✓ Chain liftover initialized")
+        except Exception as e:
+            logger.warning(f"Chain liftover failed: {e}")
+            SERVICES["chain_liftover"] = None
+        
+        # Initialize Ensembl liftover with chain fallback
+        try:
+            SERVICES["liftover"] = EnsemblLiftover(
+                fallback=SERVICES.get("chain_liftover")
+            )
+            logger.info("✓ Ensembl liftover initialized")
+        except Exception as e:
+            logger.warning(f"Ensembl liftover failed, using chain only: {e}")
+            SERVICES["liftover"] = SERVICES.get("chain_liftover")
+        
+        # Initialize feature extractor
         try:
             SERVICES["feature_extractor"] = FeatureExtractor(
                 data_dir=str(settings.REF_DIR)
             )
-        except Exception:
+            logger.info("✓ Feature extractor initialized")
+        except Exception as e:
+            logger.warning(f"Feature extractor failed: {e}")
             SERVICES["feature_extractor"] = None
-    else:
-        SERVICES["feature_extractor"] = None
-
-    if ConfidencePredictor is not None:
+        
+        # Initialize confidence predictor
         try:
-            cp = ConfidencePredictor(model_dir=str(settings.MODEL_DIR))
-            cp.load_model_if_exists()
+            cp = ConfidencePredictor(model_path=str(settings.MODEL_DIR / "confidence_model.pkl"))
             SERVICES["confidence_predictor"] = cp
-        except Exception:
+            logger.info(f"✓ Confidence predictor initialized (trained: {cp.is_trained})")
+        except Exception as e:
+            logger.warning(f"Confidence predictor failed: {e}")
             SERVICES["confidence_predictor"] = None
-    else:
-        SERVICES["confidence_predictor"] = None
-
-    if SERVICES.get("liftover"):
-        SERVICES["vcf_converter"] = VCFConverter(SERVICES["liftover"])
-    else:
-        SERVICES["vcf_converter"] = None
-
-def initialize_services() -> bool:
-    """
-    Backwards-compatible wrapper that initializes services and returns True/False.
-    """
-    try:
-        init_services()
-        return True
+        
+        # Initialize VCF converter
+        if SERVICES.get("liftover"):
+            try:
+                SERVICES["vcf_converter"] = VCFConverter(SERVICES["liftover"])
+                logger.info("✓ VCF converter initialized")
+            except Exception as e:
+                logger.warning(f"VCF converter failed: {e}")
+                SERVICES["vcf_converter"] = None
+        else:
+            SERVICES["vcf_converter"] = None
+        
+        # Check if we have at least basic liftover
+        if SERVICES.get("liftover"):
+            logger.info("✓ Core services operational")
+            return True
+        else:
+            logger.error("✗ Core liftover service failed to initialize")
+            return False
+            
     except Exception as e:
-        logger.exception("Service initialization failed: %s", e)
+        logger.error(f"Service initialization failed: {e}")
         return False
-SERVICES_AVAILABLE = initialize_services()
+
+
+# Job management
 class BatchJob:
     """Background job tracker"""
     def __init__(self, job_id: str, total_items: int, job_type: str):
@@ -146,6 +174,8 @@ def landing_page():
         active_jobs = db.query(Job).filter(
             Job.status.in_(["queued", "processing"])
         ).count()
+    except:
+        active_jobs = 0
     finally:
         db.close()
 
@@ -274,13 +304,13 @@ pre {{
 </main>
 
 <script>
-/* existing JS logic preserved */
 async function run() {{
     const chrom = document.getElementById("chrom").value;
     const pos = document.getElementById("pos").value;
 
     const r = await fetch(
-        `/liftover/single?chrom=${{chrom}}&pos=${{pos}}`
+        `/liftover/single?chrom=${{chrom}}&pos=${{pos}}&from_build=hg19&to_build=hg38`,
+        {{ method: 'POST' }}
     );
     document.getElementById("out").textContent =
         JSON.stringify(await r.json(), null, 2);
@@ -313,8 +343,7 @@ def health():
     }
 
 
-
-@app.api_route("/liftover/single", methods=["GET", "POST"])
+@app.post("/liftover/single")
 async def liftover_single(
     chrom: str = Query(...),
     pos: int = Query(..., ge=1),
@@ -324,7 +353,7 @@ async def liftover_single(
     include_ml: bool = Query(True)
 ):
     """Convert single genomic coordinate"""
-    if not SERVICES_AVAILABLE or not SERVICES.get('liftover'):
+    if not SERVICES.get('liftover'):
         raise HTTPException(status_code=503, detail="Liftover service unavailable")
     
     try:
@@ -371,108 +400,6 @@ async def liftover_single(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/liftover/batch")
-async def liftover_batch(
-    coordinates: List[Dict],
-    from_build: str = Query("hg19"),
-    to_build: str = Query("hg38"),
-    include_ml: bool = Query(True),
-    background_tasks: BackgroundTasks = None
-):
-    """Batch coordinate conversion"""
-    if not SERVICES_AVAILABLE or not SERVICES.get('liftover'):
-        raise HTTPException(status_code=503, detail="Liftover service unavailable")
-    
-    if not coordinates:
-        raise HTTPException(status_code=400, detail="No coordinates provided")
-    
-    job_id = uuid.uuid4().hex[:8]
-    job = BatchJob(job_id, len(coordinates), "batch_liftover_ml")
-    job_storage[job_id] = job
-    
-    logger.info(f"Created batch job {job_id} with {len(coordinates)} coordinates")
-    
-    async def process():
-        job.status = "processing"
-        db.commit()
-        try:
-            results = []
-            
-            for i, coord in enumerate(coordinates):
-                result = SERVICES['liftover'].convert_coordinate(
-                    coord.get("chrom", ""),
-                    coord.get("pos", 0),
-                    from_build,
-                    to_build
-                )
-                job.processed_items = i + 1
-                db.commit()
-
-                # Normalize confidence score
-                if 'confidence' in result and result['confidence'] is not None:
-                    result['confidence'] = float(result['confidence'])
-                    result['confidence'] = max(0.0, min(1.0, result['confidence']))
-                
-                if include_ml and SERVICES.get('feature_extractor') and SERVICES.get('confidence_predictor'):
-                    try:
-                        features = SERVICES['feature_extractor'].extract_features(
-                            coord.get("chrom", ""),
-                            coord.get("pos", 0),
-                            from_build,
-                            to_build,
-                            result
-                        )
-                        
-                        ml_confidence = SERVICES['confidence_predictor'].predict_confidence(features.to_array())
-                        ml_confidence = float(ml_confidence)
-                        ml_confidence = max(0.0, min(1.0, ml_confidence))
-                        
-                        result['ml_confidence'] = ml_confidence
-                        result['ml_interpretation'] = SERVICES['confidence_predictor'].interpret_confidence(ml_confidence)
-                    except:
-                        pass
-                
-                results.append(result)
-                job.processed_items = i + 1
-            
-            job.results = results
-            job.status = "completed"
-            db.commit()
-            job.end_time = datetime.now()
-            
-            successful = sum(1 for r in results if r.get("success"))
-            job.job_metadata = {
-                "successful": successful,
-                "failed": len(results) - successful,
-                "success_rate": round((successful / len(results) * 100), 2),
-                "ml_predictions": sum(1 for r in results if 'ml_confidence' in r),
-                "from_build": from_build,
-                "to_build": to_build
-            }
-            
-            logger.info(f"Job {job_id} completed: {successful}/{len(results)} successful")
-            
-        except Exception as e:
-            job.status = "failed"
-            job.errors.append(str(e))
-            logger.error(f"Job {job_id} failed: {e}")
-    
-    background_tasks.add_task(process)
-    
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "total_coordinates": len(coordinates),
-        "ml_enabled": include_ml,
-        "estimated_time_seconds": len(coordinates) * 0.2,
-        "status_endpoint": f"/job-status/{job_id}",
-        "export_endpoints": {
-            "json": f"/export/{job_id}/json",
-            "csv": f"/export/{job_id}/csv"
-        }
-    }
-
-
 @app.get("/job-status/{job_id}")
 def get_job_status(job_id: str):
     """Get job processing status"""
@@ -501,7 +428,7 @@ def get_job_status(job_id: str):
             (job.end_time - job.start_time).total_seconds()
             if job.end_time else None
         )
-        response["metadata"] = job.job_metadata
+        response["metadata"] = job.metadata
         response["results_count"] = len(job.results)
         response["export_options"] = {
             "json": f"/export/{job_id}/json",
@@ -511,351 +438,28 @@ def get_job_status(job_id: str):
     return response
 
 
-@app.get("/export/{job_id}/{format}")
-def export_results(
-    job_id: str,
-    format: str = FastAPIPath(..., regex=r"^(json|csv)$")
-):
-    """Export job results"""
-    job = job_storage.get(job_id)
-    
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    if job.status != "completed":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job not completed. Status: {job.status}"
-        )
-    
-    if format == "json":
-        content = json.dumps({
-            "job_info": {
-                "job_id": job_id,
-                "job_type": job.job_type,
-                "completed_at": job.end_time.isoformat() if job.end_time else None,
-                "processing_time_seconds": (
-                    (job.end_time - job.start_time).total_seconds()
-                    if job.end_time else None
-                ),
-                "metadata": job.job_metadata
-            },
-            "results": job.results
-        }, indent=2)
-        
-        return Response(
-            content=content,
-            media_type="application/json",
-            headers={"Content-Disposition": f"attachment; filename=results_{job_id}.json"}
-        )
-    
-    elif format == "csv":
-        output = StringIO()
-        
-        if job.results and isinstance(job.results[0], dict):
-            flattened = []
-            for result in job.results:
-                flat = {}
-                for key, value in result.items():
-                    if isinstance(value, (dict, list)):
-                        flat[key] = json.dumps(value)
-                    else:
-                        flat[key] = value
-                flattened.append(flat)
-            
-            if flattened:
-                writer = csv.DictWriter(output, fieldnames=flattened[0].keys())
-                writer.writeheader()
-                writer.writerows(flattened)
-        
-        content = output.getvalue()
-        
-        return Response(
-            content=content,
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=results_{job_id}.csv"}
-        )
-
-
-@app.get("/validation-report")
-def validation_report():
-    """Generate validation report"""
-    if not SERVICES.get('validation_engine') or not SERVICES.get('liftover'):
-        return {
-            "status": "limited",
-            "message": "Full validation unavailable",
-            "timestamp": datetime.now().isoformat()
-        }
-    
-    try:
-        from app.validation.validation_suite import GenomicValidationSuite
-        validation_suite = GenomicValidationSuite()
-        
-        results = validation_suite.run_full_validation(SERVICES['liftover'])
-        report_text = validation_suite.generate_validation_report(results)
-        
-        return {
-            "validation_report": report_text,
-            "summary": results["summary"],
-            "statistics": results["statistics"],
-            "methodology": results["methodology"],
-            "detailed_results": results["detailed_results"],
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        logger.error(f"Validation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.on_event("startup")
 async def startup_event():
     """Application startup"""
+    logger.info("=" * 80)
     logger.info("Resonance - Genomic Coordinate Liftover Service v1.0.0")
-    logger.info(f"Services Status: {SERVICES_AVAILABLE}")
+    logger.info("=" * 80)
     
+    # Initialize services
+    success = initialize_services()
+    
+    # Log service status
     for service_name, service in SERVICES.items():
         status = 'Available' if service else 'Unavailable'
         logger.info(f"  {service_name}: {status}")
     
-    if SERVICES_AVAILABLE:
-        logger.info("All critical systems operational")
+    if success:
+        logger.info("✓ All critical systems operational")
     else:
-        logger.warning("Operating in limited mode")
+        logger.warning("⚠ Operating in limited mode")
+    
+    logger.info("=" * 80)
 
-@app.post("/vcf/convert")
-async def convert_vcf_file(
-    file: UploadFile = File(..., description="VCF file to convert"),
-    from_build: str = Query("hg19", description="Source assembly"),
-    to_build: str = Query("hg38", description="Target assembly"),
-    keep_failed: bool = Query(False, description="Include variants that failed liftover"),
-    background_tasks: BackgroundTasks = None
-):
-    """
-    Convert VCF file between genome assemblies.
-    
-    Uploads VCF file and converts all variants to target assembly.
-    Preserves sample information, genotypes, and INFO fields.
-    
-    Processing is asynchronous. Use job_id to check progress and download results.
-    """
-    if not SERVICES_AVAILABLE or not vcf_converter:
-        raise HTTPException(status_code=503, detail="VCF converter unavailable")
-    
-    # Validate file extension
-    if not file.filename.endswith(('.vcf', '.vcf.gz')):
-        raise HTTPException(status_code=400, detail="File must be VCF format (.vcf or .vcf.gz)")
-    
-    content = await file.read()
-    vcf_content = content.decode('utf-8')
-    
-    job_id = uuid.uuid4().hex[:8]
-    job = BatchJob(job_id, 1, "vcf_conversion")
-    job.job_metadata["original_filename"] = file.filename
-    job_storage[job_id] = job
-    
-    async def process():
-        job.status = "processing"
-        try:
-            result = vcf_converter.convert_vcf(vcf_content, from_build, to_build, keep_failed)
-            job.results = [result]
-            job.processed_items = 1
-            job.status = "completed"
-            job.end_time = datetime.now()
-            job.job_metadata.update(result["statistics"])
-            
-            if result["statistics"]["failed_conversion"] > 0:
-                job.warnings.append(
-                    f"{result['statistics']['failed_conversion']} variants failed conversion"
-                )
-        except Exception as e:
-            job.status = "failed"
-            job.errors.append(str(e))
-            logger.error(f"VCF conversion failed: {e}")
-    
-    background_tasks.add_task(process)
-    
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "original_filename": file.filename,
-        "from_build": from_build,
-        "to_build": to_build,
-        "status_endpoint": f"/job-status/{job_id}",
-        "download_endpoint": f"/vcf/download/{job_id}"
-    }
-
-@app.get("/vcf/download/{job_id}")
-async def download_converted_vcf(job_id: str):
-    """Download converted VCF file"""
-    job = job_storage.get(job_id)
-    
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    if job.status != "completed":
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Job not completed. Current status: {job.status}"
-        )
-    
-    if not job.results:
-        raise HTTPException(status_code=500, detail="No results available")
-    
-    vcf_content = job.results[0]["vcf_content"]
-    original_filename = job.job_metadata.get("original_filename", "input.vcf")
-    output_filename = f"converted_{original_filename}"
-    
-    return PlainTextResponse(
-        vcf_content,
-        media_type="text/plain",
-        headers={
-            "Content-Disposition": f"attachment; filename={output_filename}"
-        }
-    )
-
-@app.post("/vcf/validate")
-async def validate_vcf_file(
-    file: UploadFile = File(..., description="VCF file to validate")
-):
-    """
-    Validate VCF file format compliance.
-    
-    Checks for required headers, column structure, and variant line formatting.
-    """
-    if not SERVICES_AVAILABLE or not vcf_converter:
-        raise HTTPException(status_code=503, detail="VCF validator unavailable")
-    
-    content = await file.read()
-    vcf_content = content.decode('utf-8')
-    
-    validation = vcf_converter.validate_vcf(vcf_content)
-    
-    return {
-        "filename": file.filename,
-        "validation_result": validation,
-        "timestamp": datetime.now().isoformat()
-    }
-
-
-
-@app.post("/semantic/reconcile")
-async def reconcile_semantic_annotations(
-    gene_symbol: str = Query(..., description="Gene symbol"),
-    annotations: List[Dict] = None,
-    background_tasks: BackgroundTasks = None
-):
-    """
-    Reconcile conflicting gene descriptions using semantic analysis.
-    
-    Request body format:
-    [
-        {
-            "description": "BRCA1 DNA repair associated",
-            "source": "NCBI",
-            "biological_process": ["DNA repair"],
-            "confidence": 0.95
-        },
-        {
-            "description": "breast cancer type 1 susceptibility protein",
-            "source": "UniProt",
-            "molecular_function": ["protein binding"],
-            "confidence": 0.97
-        }
-    ]
-    
-    Returns reconciled description with consensus biological terms.
-    """
-    if not SERVICES_AVAILABLE or not semantic_engine:
-        raise HTTPException(status_code=503, detail="Semantic reconciliation unavailable")
-    
-    if not annotations or len(annotations) == 0:
-        raise HTTPException(status_code=400, detail="No annotations provided")
-    
-    # Convert to SemanticAnnotation objects
-    from app.services.semantic_reconciliation import SemanticAnnotation
-    
-    semantic_annotations = []
-    for ann in annotations:
-        semantic_ann = SemanticAnnotation(
-            gene_symbol=gene_symbol,
-            description=ann.get("description", ""),
-            source=ann.get("source", "Unknown"),
-            biological_process=ann.get("biological_process"),
-            molecular_function=ann.get("molecular_function"),
-            cellular_component=ann.get("cellular_component"),
-            protein_domains=ann.get("protein_domains"),
-            confidence=ann.get("confidence", 0.8)
-        )
-        semantic_annotations.append(semantic_ann)
-    
-    try:
-        result = semantic_engine.reconcile_annotations(gene_symbol, semantic_annotations)
-        return result
-    except Exception as e:
-        logger.error(f"Semantic reconciliation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/semantic/batch-reconcile")
-async def batch_reconcile_semantic(
-    gene_annotations: Dict[str, List[Dict]],
-    background_tasks: BackgroundTasks = None
-):
-    """
-    Batch reconciliation for multiple genes.
-    
-    Request body maps gene symbols to annotation lists.
-    Processing is asynchronous.
-    """
-    if not SERVICES_AVAILABLE or not semantic_engine:
-        raise HTTPException(status_code=503, detail="Semantic reconciliation unavailable")
-    
-    job_id = uuid.uuid4().hex[:8]
-    job = BatchJob(job_id, len(gene_annotations), "semantic_reconciliation")
-    job_storage[job_id] = job
-    
-    async def process():
-        job.status = "processing"
-        try:
-            from app.services.semantic_reconciliation import SemanticAnnotation
-            
-            # Convert all annotations
-            converted = {}
-            for gene, anns in gene_annotations.items():
-                semantic_anns = []
-                for ann in anns:
-                    semantic_ann = SemanticAnnotation(
-                        gene_symbol=gene,
-                        description=ann.get("description", ""),
-                        source=ann.get("source", "Unknown"),
-                        biological_process=ann.get("biological_process"),
-                        molecular_function=ann.get("molecular_function"),
-                        confidence=ann.get("confidence", 0.8)
-                    )
-                    semantic_anns.append(semantic_ann)
-                converted[gene] = semantic_anns
-            
-            results = semantic_engine.batch_reconcile(converted)
-            report = semantic_engine.generate_reconciliation_report(results)
-            
-            job.results = list(results.values())
-            job.processed_items = len(results)
-            job.status = "completed"
-            job.end_time = datetime.now()
-            job.job_metadata = report
-            
-        except Exception as e:
-            job.status = "failed"
-            job.errors.append(str(e))
-            logger.error(f"Batch semantic reconciliation failed: {e}")
-    
-    background_tasks.add_task(process)
-    
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "genes_to_process": len(gene_annotations),
-        "status_endpoint": f"/job-status/{job_id}"
-    }
 
 if __name__ == "__main__":
     import uvicorn
