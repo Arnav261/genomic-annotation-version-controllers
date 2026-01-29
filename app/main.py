@@ -15,7 +15,7 @@ import os
 import json
 import csv
 from io import StringIO
-from app.database import SessionLocal
+from app.database import SessionLocal, Job
 import numpy as np
 from app.config import settings
 startup_time = time.time()
