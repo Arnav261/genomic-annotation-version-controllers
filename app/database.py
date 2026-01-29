@@ -34,7 +34,7 @@ class Job(Base):
     processed_items = Column(Integer, default=0)
     results = Column(JSON, nullable=True)
     errors = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    job_metadata = Column("metadata", JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

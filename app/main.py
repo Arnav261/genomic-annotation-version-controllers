@@ -431,7 +431,7 @@ async def liftover_batch(
             job.end_time = datetime.now()
             
             successful = sum(1 for r in results if r.get("success"))
-            job.metadata = {
+            job.job_metadata = {
                 "successful": successful,
                 "failed": len(results) - successful,
                 "success_rate": round((successful / len(results) * 100), 2),
@@ -491,7 +491,7 @@ def get_job_status(job_id: str):
             (job.end_time - job.start_time).total_seconds()
             if job.end_time else None
         )
-        response["metadata"] = job.metadata
+        response["metadata"] = job.job_metadata
         response["results_count"] = len(job.results)
         response["export_options"] = {
             "json": f"/export/{job_id}/json",
@@ -528,7 +528,7 @@ def export_results(
                     (job.end_time - job.start_time).total_seconds()
                     if job.end_time else None
                 ),
-                "metadata": job.metadata
+                "metadata": job.job_metadata
             },
             "results": job.results
         }, indent=2)
@@ -640,7 +640,7 @@ async def convert_vcf_file(
     
     job_id = uuid.uuid4().hex[:8]
     job = BatchJob(job_id, 1, "vcf_conversion")
-    job.metadata["original_filename"] = file.filename
+    job.job_metadata["original_filename"] = file.filename
     job_storage[job_id] = job
     
     async def process():
@@ -651,7 +651,7 @@ async def convert_vcf_file(
             job.processed_items = 1
             job.status = "completed"
             job.end_time = datetime.now()
-            job.metadata.update(result["statistics"])
+            job.job_metadata.update(result["statistics"])
             
             if result["statistics"]["failed_conversion"] > 0:
                 job.warnings.append(
@@ -692,7 +692,7 @@ async def download_converted_vcf(job_id: str):
         raise HTTPException(status_code=500, detail="No results available")
     
     vcf_content = job.results[0]["vcf_content"]
-    original_filename = job.metadata.get("original_filename", "input.vcf")
+    original_filename = job.job_metadata.get("original_filename", "input.vcf")
     output_filename = f"converted_{original_filename}"
     
     return PlainTextResponse(
@@ -831,7 +831,7 @@ async def batch_reconcile_semantic(
             job.processed_items = len(results)
             job.status = "completed"
             job.end_time = datetime.now()
-            job.metadata = report
+            job.job_metadata = report
             
         except Exception as e:
             job.status = "failed"
