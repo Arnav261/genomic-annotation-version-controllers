@@ -197,8 +197,8 @@ def landing_page():
     finally:
         db.close()
 
-    # Calculate operational services
-    operational_count = sum(1 for service in SERVICES.values() if service is not None)
+    core_services = ['liftover', 'vcf_converter', 'confidence_predictor', 'feature_extractor', 'semantic_engine']
+    operational_count = sum(1 for key in core_services if SERVICES.get(key) is not None)
     
     # Status classes for badges
     ml_status_class = "status-available" if SERVICES.get("confidence_predictor") else "status-unavailable"
@@ -1002,9 +1002,117 @@ async function runBatchConversion() {{
     progressDiv.style.display = 'block';
     outputEl.style.display = 'none';
     
-    outputEl.className = 'result-success';
-    outputEl.style.display = 'block';
-    outputEl.textContent = 'Batch processing feature coming soon!\\nPlease use the API endpoint /liftover/batch for now.\\nSee /docs for details.';
+async function pollBatchResults(jobId) {
+    const outputEl = document.getElementById('batch-output');
+    const progressFill = document.getElementById('batch-progress-fill');
+    const statusText = document.getElementById('batch-status-text');
+    const progressDiv = document.getElementById('batch-progress');
+    
+    progressDiv.style.display = 'block';
+    
+    let attempts = 0;
+    const maxAttempts = 30;
+    
+    const poll = async () => {
+        try {
+            const response = await fetch(`/job-status/${jobId}`);
+            const status = await response.json();
+            
+            const progress = status.progress_percent || 0;
+            progressFill.style.width = `${progress}%`;
+            progressFill.textContent = `${progress.toFixed(0)}%`;
+            statusText.textContent = `Status: ${status.status} - ${status.processed_items}/${status.total_items} processed`;
+            
+            if (status.status === 'completed') {
+                progressDiv.style.display = 'none';
+                outputEl.className = 'result-success';
+                outputEl.textContent = `Batch job completed!\\n\\n${JSON.stringify(status.metadata || {}, null, 2)}\\n\\nDownload results at: ${status.export_options?.json || 'N/A'}`;
+                return;
+            } else if (status.status === 'failed') {
+                progressDiv.style.display = 'none';
+                outputEl.className = 'result-error';
+                outputEl.textContent = `Batch job failed:\\n${status.error_message || 'Unknown error'}`;
+                return;
+            }
+            
+            attempts++;
+            if (attempts < maxAttempts) {
+                setTimeout(poll, 2000);
+            } else {
+                progressDiv.style.display = 'none';
+                outputEl.className = 'result-warning';
+                outputEl.textContent = 'Polling timed out. Check job status manually.';
+            }
+        } catch (error) {
+            progressDiv.style.display = 'none';
+            outputEl.className = 'result-error';
+            outputEl.textContent = `Error polling status: ${error.message}`;
+        }
+    };
+    
+    poll();
+}
+    
+// Parse coordinates from text input
+    const lines = text.trim().split('\\n');
+    const coordinates = [];
+    
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        
+        // Support formats: "chr17,41196312" or "chr17:41196312"
+        const match = trimmed.match(/^(chr)?([\\dXYM]+)[,:](\\d+)/i);
+        if (match) {
+            const chrom = match[1] ? match[0].split(/[,:]/ )[0] : 'chr' + match[2];
+            const pos = parseInt(match[3]);
+            coordinates.push({ chrom, pos });
+        }
+    }
+
+    if (coordinates.length === 0) {
+        alert('No valid coordinates found. Use format: chr17,41196312 or chr17:41196312');
+        progressDiv.style.display = 'none';
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/liftover/batch?from_build=${fromBuild}&to_build=${toBuild}&include_ml=${includeML}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(coordinates)
+            }
+        );
+        
+        const result = await response.json();
+        
+        progressDiv.style.display = 'none';
+        outputEl.style.display = 'block';
+        
+        if (result.job_id) {
+            outputEl.className = 'result-success';
+            outputEl.textContent = `Batch job started!\\n\\nJob ID: ${result.job_id}\\nTotal coordinates: ${result.total_coordinates}\\nStatus endpoint: ${result.status_endpoint}\\n\\nPolling for results...`;
+            
+            // Auto-poll for results
+            setTimeout(() => pollBatchResults(result.job_id), 2000);
+        } else if (Array.isArray(result)) {
+            outputEl.className = 'result-success';
+            const successCount = result.filter(r => r.success).length;
+            outputEl.textContent = `Batch conversion complete!\\n\\nSuccessful: ${successCount}/${result.length}\\n\\n${JSON.stringify(result, null, 2)}`;
+        } else {
+            outputEl.className = 'result-error';
+            outputEl.textContent = JSON.stringify(result, null, 2);
+        }
+    } catch (error) {
+        progressDiv.style.display = 'none';
+        outputEl.className = 'result-error';
+        outputEl.style.display = 'block';
+        outputEl.textContent = `Error: ${error.message}`;
+    }
 }}
 
 // Region conversion
@@ -1042,12 +1150,67 @@ async function runRegionConversion() {{
 }}
 
 // Semantic reconciliation
-async function runSemanticReconciliation() {{
+async function runSemanticReconciliation() {
+    const gene = document.getElementById('semantic-gene').value.trim();
+    const sourceDb = document.getElementById('semantic-source').value;
+    const build = document.getElementById('semantic-build').value;
+    const includeVariants = document.getElementById('semantic-variants').checked;
+    const includeTranscripts = document.getElementById('semantic-transcripts').checked;
+
+    if (!gene) {
+        alert('Please enter a gene symbol or transcript ID');
+        return;
+    }
+
     const outputEl = document.getElementById('semantic-output');
     outputEl.style.display = 'block';
-    outputEl.className = 'result-warning';
-    outputEl.textContent = 'Semantic reconciliation feature coming soon!\\nThis will integrate with NCBI RefSeq, Ensembl, and other databases.\\nSee /docs for planned API endpoints.';
-}}
+    outputEl.textContent = 'Processing semantic reconciliation...';
+    outputEl.className = '';
+
+    try {
+        // Create sample annotations for demonstration
+        const annotations = [
+            {
+                description: `${gene} from ${sourceDb}`,
+                source: sourceDb,
+                biological_process: ["regulation", "signaling"],
+                molecular_function: ["binding", "catalytic"],
+                confidence: 0.9
+            },
+            {
+                description: `${gene} annotation from reference database`,
+                source: "RefSeq",
+                biological_process: ["regulation"],
+                molecular_function: ["binding"],
+                confidence: 0.85
+            }
+        ];
+
+        const response = await fetch(
+            `/semantic/reconcile?gene_symbol=${encodeURIComponent(gene)}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(annotations)
+            }
+        );
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            outputEl.className = 'result-success';
+        } else {
+            outputEl.className = 'result-error';
+        }
+        
+        outputEl.textContent = JSON.stringify(result, null, 2);
+    } catch (error) {
+        outputEl.className = 'result-error';
+        outputEl.textContent = `Error: ${error.message}`;
+    }
+}
 
 // VCF instructions
 function showVCFInstructions() {{
