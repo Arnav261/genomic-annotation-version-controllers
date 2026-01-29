@@ -60,7 +60,7 @@ class RealLiftoverService:
         
         return f"{from_cap}To{to_cap}"
     
-    def _download_chain_file(self, chain_key: str) -> Pathlib:
+    def _download_chain_file(self, chain_key: str) -> Path:
         """Download chain file from UCSC if not present"""
         if chain_key not in self.chain_urls:
             # Try to see if local file exists in chain_dir
