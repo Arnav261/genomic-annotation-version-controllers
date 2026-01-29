@@ -1,6 +1,6 @@
 # Genomic Coordinate Liftover with ML Confidence Prediction
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16966073.svg)](https://doi.org/10.5281/zenodo.16966073)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16966073.svg)](https://doi.org/10.5281/zenodo.16966073)  
 > **Honest Implementation**: This tool provides accurate coordinate liftover with ML-based confidence prediction. It does NOT claim to be a general-purpose AI genomics platform.
 
 ## What This Tool Actually Does
@@ -10,76 +10,107 @@
 1. **Accurate Coordinate Liftover**
    - Uses UCSC LiftOver chain files (pyliftover)
    - Supports hg19 (GRCh37) ↔ hg38 (GRCh38)
-   - Validated against NCBI RefSeq coordinates
-   - Success rate: >95% on protein-coding genes
+   - Per-variant tracking and validation against authoritative coordinates
 
 2. **ML Confidence Prediction**
-   - Gradient Boosting Classifier (sklearn)
-   - 11 genomic features: chain quality, repeats, SVs, GC content
-   - Calibrated probability scores (0.0-1.0)
-   - Interpretable recommendations (clinical/research thresholds)
+   - Gradient boosting classifier with calibrated probability outputs
+   - Interpretable feature contributions (SHAP-compatible export)
+   - Expanded feature set including chain quality, repeats, SVs, GC content, and historical region success
 
-3. **VCF File Conversion**
+3. **VCF File Conversion & Streaming**
    - Complete VCF 4.x parsing and validation
    - Preserves sample/genotype information
-   - Tracks conversion success per variant
-   - Generates quality metrics
+   - Streaming-friendly batch processing for large VCFs
+   - Per-variant conversion status and quality metrics
 
-4. **Systematic Validation**
-   - Benchmarked against NCBI RefSeq genes
-   - Per-chromosome accuracy breakdowns
-   - Confidence score calibration analysis
-   - Exportable validation reports
+4. **Scalable Batch Processing (Only Partially Functional - Repeated Separate Liftover Recommended)**
+   - Parallelized batch liftover worker (configurable concurrency)
+   - CLI support for batched jobs and pipeline integration
+   - Optional chunked processing to limit memory footprint
 
-### What This Tool Does NOT Do ✗
+5. **Deployment & Reproducibility**
+   - Docker image for demo and reproducible environments
+   - GitHub Actions CI for tests and linting
+   - Pre-built demo on Render (where available)
 
-**Be Honest:**
-- This is NOT a deep learning / neural network system
-- Semantic reconciliation uses basic NLP (TF-IDF), not biomedical language models
-- RL components are experimental scaffolds, not production-ready
-- Limited to human genome assemblies (hg19/hg38)
-- Does not provide clinical-grade variant interpretation
+6. **Expanded Validation**
+   - Broader RefSeq-derived training/validation set (expanded towards ~20K genes)
+   - Exportable validation reports with per-chromosome and calibration analysis
 
-**Future Work:**
-- Integration with PubMedBERT for biomedical text understanding
-- Multi-species support (mouse, zebrafish, etc.)
-- RL-based conflict resolution training
-- Real-time Ensembl API integration
+7. **Optional Integrations (Pluggable)**
+   - Ensembl API connector (experimental) for cross-references
+   - RepeatMasker, DGV/gnomAD-SV integration to flag problematic regions
+
+---
+
+## What This Tool Does NOT Do ✗
+
+Be honest:
+- This is NOT clinical-grade variant interpretation (not FDA/CLIA).
+- It is not a general biomedical language model — semantic reconciliation is lightweight.
+- Multi-species liftover is experimental/partial; human assemblies are the primary supported target.
+- Real-time production-scale RL or deep learning components are not part of the stable core.
 
 ---
 
 ## Quick Start
 
-### Installation
+### Install (recommended: virtualenv) or use Docker
+
+Using Python virtual environment:
 
 ```bash
-# Clone repository
 git clone https://github.com/Arnav261/genomic-annotation-version-controllers.git
 cd genomic-annotation-version-controllers
 
-# Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-# Download UCSC chain files (one-time setup)
+Download UCSC chain files (one-time):
+
+```bash
 mkdir -p app/data/chains
 cd app/data/chains
 wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
 cd ../../..
+```
 
-# Run server
+Run the API server:
+
+```bash
 uvicorn app.main:app --reload
 ```
 
-### Basic Usage
+Using Docker (recommended for demo or reproducible runs):
+
+```bash
+# Build
+docker build -t gavo-liftover:latest .
+
+# Run (exposes API on 8000)
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/app/data/chains:/app/data/chains:ro" \
+  gavo-liftover:latest
+
+# Or run the published image (if available)
+docker run --rm -p 8000:8000 arnav261/gavo-liftover:latest
+```
+
+### CLI example (batch liftover)
+
+```bash
+# liftover-cli is available in the repo to run local batch jobs
+liftover-cli --input variants.vcf --output variants.lifted.vcf \
+  --from hg19 --to hg38 --workers 4 --include-ml
+```
+
+### Basic Python usage (single coordinate)
 
 ```python
 import requests
 
-# Single coordinate liftover with ML confidence
 response = requests.post(
     "http://localhost:8000/liftover/single",
     params={
@@ -92,9 +123,9 @@ response = requests.post(
 )
 
 result = response.json()
-print(f"Lifted position: {result['lifted_pos']}")
-print(f"ML confidence: {result['ml_analysis']['confidence_score']:.3f}")
-print(f"Recommendation: {result['ml_analysis']['interpretation']['recommendation']}")
+print(f"Lifted position: {result.get('lifted_pos')}")
+print(f"ML confidence: {result.get('ml_analysis',{}).get('confidence_score')}")
+print(f"Recommendation: {result.get('ml_analysis',{}).get('interpretation',{}).get('recommendation')}")
 ```
 
 ---
@@ -103,144 +134,101 @@ print(f"Recommendation: {result['ml_analysis']['interpretation']['recommendation
 
 ### ML Confidence Model
 
-**Algorithm:** Gradient Boosting Classifier with probability calibration
+- Algorithm: Gradient boosting classifier (scikit-learn) with probability calibration. Optional LightGBM backend supported for faster training/inference.
+- Features (examples):
+  - Chain alignment score and agreement
+  - Chain gap and local chain context
+  - Local GC content (±1kb)
+  - RepeatMasker overlap density and low-complexity flag
+  - Structural variant overlap (DGV/gnomAD-SV)
+  - Segmental duplication overlap
+  - Distance to assembly gaps
+  - Historical region liftover success
+- Explainability: SHAP export enables per-variant explanation vectors that can be included in reports.
 
-**Features (11 total):**
-1. Chain file alignment score
-2. Number of chain files agreeing
-3. Chain gap size
-4. Local GC content (±1kb)
-5. RepeatMasker overlap density
-6. Low complexity region flag
-7. Structural variant overlap (DGV/gnomAD-SV)
-8. Segmental duplication overlap
-9. Distance to assembly gap
-10. Historical success rate for region
-11. Cross-reference database agreement
+Training and validation:
+- Training dataset expanded using RefSeq-derived coordinates; ongoing efforts to grow the validated set to ~20K genes for robust calibration.
+- Internal cross-validation shows improved calibration and stability compared to the initial prototype. See exported validation reports for detailed metrics.
 
-**Training Data:**
-- Positive examples: Validated NCBI RefSeq coordinates
-- Negative examples: Known failed liftover, problematic regions
-- Size: Expandable to 20K+ genes
+### Validation & Reports
 
-**Performance:**
-- Cross-validation AUC: 0.85+ (on test set)
-- Confidence calibration: High confidence (>0.9) → 95%+ accuracy
-- Feature importance: Chain score (45%), repeat density (22%), SV overlap (15%)
-
-### Validation Results
-
-| Gene | hg19 Position | hg38 Expected | hg38 Actual | Error (bp) | ML Confidence |
-|------|---------------|---------------|-------------|------------|---------------|
-| BRCA1 | chr17:41196312 | chr17:43044295 | chr17:43044295 | 0 | 0.98 |
-| TP53 | chr17:7571720 | chr17:7661779 | chr17:7661779 | 0 | 0.97 |
-| EGFR | chr7:55086725 | chr7:55019017 | chr7:55019017 | 0 | 0.96 |
-
-**Overall Statistics:**
-- Genes validated: 10+ (expandable to 20K+)
-- Success rate: 100% on test set
-- Mean error: <10bp
-- Median error: 0bp
-- 95th percentile error: <50bp
+The `/validation-report` endpoint and exported artifacts include:
+- Per-chromosome accuracy
+- Confidence score calibration plots and metrics
+- Error distribution statistics and edge-case summaries
+- Comparison methodology and reproducible scripts used for benchmarking
 
 ---
 
-## API Endpoints
+## API Endpoints (high level)
 
-### Core Liftover
+- POST /liftover/single — single coordinate liftover (with optional ML output)
+- POST /liftover/batch — JSON array of coordinates; supports streaming/async mode
+- POST /liftover/stream — upload VCF for streaming conversion (recommended for large files)
+- GET /validation-report — returns the latest validation artifacts
+- GET /health — service and ML model health with honest status report
 
-**POST /liftover/single**
+Example cURL (single):
+
 ```bash
 curl -X POST "http://localhost:8000/liftover/single?chrom=chr17&pos=41196312&from_build=hg19&to_build=hg38&include_ml=true"
 ```
 
-**POST /liftover/batch**
+Batch (file upload / streaming is recommended for large sets):
+
 ```bash
 curl -X POST "http://localhost:8000/liftover/batch" \
   -H "Content-Type: application/json" \
   -d '[{"chrom": "chr17", "pos": 41196312}, {"chrom": "chr7", "pos": 55086725}]'
 ```
 
-### Validation
-
-**GET /validation-report**
-```bash
-curl http://localhost:8000/validation-report
-```
-
-Returns comprehensive validation metrics including:
-- Per-chromosome accuracy
-- Confidence score calibration
-- Error distribution statistics
-- Comparison methodology
-
-### Health Check
-
-**GET /health**
-```bash
-curl http://localhost:8000/health
-```
-
-Returns honest service status:
-- Core capabilities
-- ML model status
-- Training data availability
-- Known limitations
-
 ---
 
 ## Development Roadmap
 
 ### Phase 1: Current State ✓
-- [x] Basic liftover (UCSC chain files)
-- [x] ML confidence prediction (gradient boosting)
-- [x] Validation against NCBI RefSeq
-- [x] VCF file conversion
-- [x] FastAPI with OpenAPI docs
+- [x] Core liftover using UCSC chain files
+- [x] ML confidence prediction (calibrated gradient boosting)
+- [x] VCF conversion and streaming support
+- [x] FastAPI with OpenAPI docs and health checks
+- [x] Docker image and basic CI
 
-### Phase 2: Enhanced ML (In Progress)
-- [ ] Download full NCBI RefSeq dataset (~20K genes)
-- [ ] Train on comprehensive validation data
-- [ ] Add RepeatMasker integration
-- [ ] Integrate DGV/gnomAD-SV databases
-- [ ] Expand validation to ClinVar variants
+### Phase 2: Enhanced ML (In Progress - Near Completion)
+- [x] Expanded RefSeq-derived training and validation dataset
+- [x] SHAP-compatible explainability export
+- [x] Parallel batch processing and CLI
+- [ ] Further calibration with additional validated variants (Partially achieved with semantic reconciliation)
 
 ### Phase 3: Advanced Features (Planned)
-- [ ] Biomedical NLP with PubMedBERT
-- [ ] Cross-species liftover support
-- [ ] RL-based conflict resolution
-- [ ] Real-time Ensembl API integration
-- [ ] Docker container with pre-loaded data
+- [ ] Biomedical NLP (PubMedBERT) for semantic reconciliation (experimental)
+- [ ] Multi-species liftover support (beta)
+- [ ] RepeatMasker and DGV/gnomAD-SV full integration 
+- [ ] Real-time Ensembl API backlinking and cross-references
+- [ ] Benchmarking against CrossMap and UCSC liftOver at scale
 
 ### Phase 4: Publication (Goal)
-- [ ] Benchmark against CrossMap, UCSC liftOver
-- [ ] Comprehensive accuracy analysis
-- [ ] Performance profiling (speed, memory)
-- [ ] Write methods paper
-- [ ] Submit to BMC Bioinformatics
+- [ ] Comprehensive benchmark and methods paper
+- [ ] Performance profiling and memory/speed optimizations
+- [ ] Community-driven validations and user-facing tutorials
 
 ---
 
 ## Data Sources
 
 ### Required
-- **UCSC Chain Files**: Authoritative coordinate mappings
+- **UCSC Chain Files**: coordinate mappings
   - Source: http://hgdownload.soe.ucsc.edu/goldenPath/
-  - License: Open access for research
+  - License: open access for research
 
-- **NCBI RefSeq**: Gene coordinates for validation
+- **NCBI RefSeq**: gene coordinates for training/validation
   - Source: ftp://ftp.ncbi.nlm.nih.gov/refseq/
-  - License: Public domain
+  - License: public domain
 
-### Optional (Improves ML Accuracy)
-- **RepeatMasker**: Repetitive element annotations
-  - Improves confidence for repeat regions
-
-- **DGV/gnomAD-SV**: Structural variant databases
-  - Flags problematic regions
-
-- **ClinVar**: Clinical variant coordinates
-  - Additional validation data
+### Optional (improves accuracy)
+- **RepeatMasker** annotations
+- **DGV / gnomAD-SV** for structural variant context
+- **Ensembl** cross-references (experimental)
+- **ClinVar** variant coordinates for clinical validation
 
 ---
 
@@ -262,58 +250,43 @@ If you use this tool in your research, please cite:
 
 ## Contributing
 
-This is a learning project where feedback is welcome:
+This is a learning & research project — contributions and feedback are welcome.
 
-### What Would Be Helpful
-- Testing on additional gene sets
-- Integration with other databases (Ensembl, GENCODE)
-- Performance optimization suggestions
-- ML model improvements
-- Documentation corrections
+### Helpful contributions
+- Testing on additional gene sets and real VCFs
+- Integration and benchmarking with other liftover tools (CrossMap, UCSC liftOver)
+- Performance optimization and memory profiling
+- Improvements to ML model, calibration, and feature engineering
+- Better docs and example pipelines
 
-### What This Project Needs
-- [ ] Comprehensive NCBI RefSeq validation dataset
-- [ ] RepeatMasker integration
-- [ ] Benchmark comparison scripts
-- [ ] CI/CD pipeline for testing
-- [ ] User documentation and tutorials
-
-### How to Contribute
+How to contribute:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/improvement`)
-3. Make your changes with tests
-4. Submit a pull request with clear description
+3. Add tests where applicable
+4. Submit a pull request with a clear description
 
 ---
 
 ## Known Issues & Limitations
 
 ### Current Limitations
-1. **Assembly Support**: Only hg19 ↔ hg38 (human)
-   - Need additional chain files for other species
+1. Assembly support: Primary support remains hg19 ↔ hg38 (human). Multi-species is experimental.
+2. ML model: While training data has been expanded, more high-quality validated variants are needed for production-grade calibration.
+3. Semantic features: Still lightweight; PubMedBERT integration is planned but not production-ready.
+4. Resource usage: Large VCF streaming requires adequate memory and I/O; tune worker count accordingly.
 
-2. **ML Model Training**: Model uses heuristics + small validation set
-   - Needs training on 20K+ genes for production use
-
-3. **Semantic Features**: Basic TF-IDF similarity only
-   - Would benefit from PubMedBERT embeddings
-
-4. **Performance**: Single-threaded processing
-   - Could be parallelized for large batch jobs
-
-### Known Edge Cases
-- **Problematic Regions**: Centromeres, telomeres, PAR regions
-- **Structural Variants**: Large insertions/deletions may not lift
-- **Pseudoautosomal Regions**: X/Y chromosome edge cases
-- **Assembly Gaps**: Coordinates near gaps have lower confidence
+### Edge Cases
+- Centromeres, telomeres, and PAR regions remain problematic.
+- Large structural variants, complex rearrangements, or regions adjacent to assembly gaps may fail liftover or be assigned low confidence.
+- X/Y pseudoautosomal edge cases require cautious interpretation.
 
 ---
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/Arnav261/genomic-annotation-version-controllers/issues)
-- **Email**: arnavasher007@gmail.com
-- **Demo**: [genomic-annotation-version-controller.onrender.com](https://genomic-annotation-version-controller.onrender.com)
+- Issues: [GitHub Issues](https://github.com/Arnav261/genomic-annotation-version-controllers/issues)
+- Email: arnavasher007@gmail.com
+- Demo: [genomic-annotation-version-controller.onrender.com](https://genomic-annotation-version-controller.onrender.com) (subject to availability)
 
 ---
 
@@ -325,41 +298,29 @@ MIT License - See LICENSE file for details
 
 ## Acknowledgments
 
-- **UCSC Genome Browser**: Chain files and liftOver binary
-- **NCBI**: RefSeq gene coordinates for validation
-- **pyliftover**: Python wrapper for UCSC liftOver
-- **scikit-learn**: Machine learning library
-- **FastAPI**: Web framework
+- UCSC Genome Browser: chain files and liftover resources
+- NCBI: RefSeq coordinates
+- pyliftover, scikit-learn, FastAPI
+- Community contributors and early testers
 
 ---
 
 ## Honest Self-Assessment
 
-**What Works Well:**
-- Coordinate liftover is accurate and validated
-- ML confidence provides useful uncertainty estimates
-- Code is well-documented and testable
+What works well:
+- Accurate and validated liftover for many genic regions
+- ML confidence gives interpretable uncertainty that is useful for filtering and triage
+- Docker and CLI make reproducible demos and batch processing straightforward
 
-**What Needs Improvement:**
-- ML model needs training on larger dataset
-- Semantic features are basic (not biomedical-specific)
-- Limited to human genome
-- Experimental components (RL) are scaffolds
+What needs improvement:
+- Larger, high-quality training/validation datasets for production-grade calibration
+- Full integration with large annotation sources (RepeatMasker, gnomAD-SV)
+- Multi-species and advanced NLP features remain experimental
 
-**Rating: 7/10** for research use (with full dataset: 8.5/10)
-
-This tool is suitable for:
-- ✓ Research projects needing validated liftover
-- ✓ Bioinformatics pipelines with confidence filtering
-- ✓ Learning about genomic coordinate systems
-
-Not suitable for:
-- ✗ Clinical diagnostic use (not FDA/CLIA approved)
-- ✗ Production use without additional validation
-- ✗ General AI genomics tasks
+Rating: 7/10 for research use; with additional validation, documentation, and benchmarks this can rise for production research pipelines.
 
 ---
 
-**Last Updated:** November 2025
-**Version:** 4.0.0 
+**Last Updated:** 2026-01-29  
+**Version:** 4.1.0  
 **Status:** Active Development
