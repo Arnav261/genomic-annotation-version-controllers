@@ -47,6 +47,7 @@ app.add_middleware(
 
 
 job_storage: Dict[str, Any] = {}
+SERVICES: Dict[str, Any] = {}
 
 def init_services():
     try:
