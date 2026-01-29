@@ -29,7 +29,7 @@ class RealLiftoverService:
     def __init__(self, chain_dir: str = "./data/chains"):
         self.chain_dir = Pathlib(chain_dir)
         self.chain_dir.mkdir(parents=True, exist_ok=True)
-        
+        self.lifters = {}
         self.chain_urls = {
     "hg19ToHg38": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz",
     "hg38ToHg19": "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz",

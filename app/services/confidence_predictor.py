@@ -157,6 +157,43 @@ class ConfidencePredictor:
         
         return float(np.clip(confidence, 0.0, 1.0))
     
+    def interpret_confidence(self, confidence: float) -> Dict[str, Any]:
+        """Interpret ML confidence score with clinical recommendations"""
+        confidence = float(confidence)
+        confidence = max(0.0, min(1.0, confidence))
+    
+        if confidence >= 0.90:
+            level = "VERY_HIGH"
+            interpretation = "Liftover highly reliable for clinical use"
+            recommendation = "Suitable for clinical-grade applications"
+            color = "green"
+        elif confidence >= 0.70:
+            level = "HIGH"
+            interpretation = "Liftover reliable for research use"
+            recommendation = "Suitable for research applications"
+            color = "blue"
+        elif confidence >= 0.50:
+            level = "MODERATE"
+            interpretation = "Liftover acceptable but requires verification"
+            recommendation = "Verify with additional validation methods"
+            color = "yellow"
+        else:
+            level = "LOW"
+            interpretation = "Liftover uncertain and requires manual review"
+            recommendation = "Manual review required"
+            color = "red"
+    
+        return {
+            'confidence_score': confidence,
+            'confidence_level': level,
+            'interpretation': interpretation,
+            'recommendation': recommendation,
+            'color_code': color,
+            'threshold_clinical': confidence >= 0.90,
+            'threshold_research': confidence >= 0.70,
+            'threshold_exploratory': confidence >= 0.50
+        }
+
     def train(
         self,
         X_train: np.ndarray,

@@ -1,102 +1,223 @@
 """
-Ensembl REST-based liftover wrapper with fallback to chain-file liftover.
-Primary approach: use Ensembl REST `map` endpoint:
-GET {base}/map/human/{from_assembly}/{region}/{to_assembly}
-Example region: 7:140424943..140624564
+Ensembl REST API Liftover Service - FIXED
+Handles assembly name conversion correctly (hg19 → GRCh37)
 """
+import logging
+import time
 from typing import Dict, Optional
 import requests
-import time
-from app.config import settings
-import logging
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_HEADERS = {
-    "Content-Type": "application/json",
-    "User-Agent": settings.ENSEMBL_USER_AGENT
-}
-
 
 class EnsemblLiftover:
-    def __init__(self, fallback=None):
-        """
-        fallback: object with convert_coordinate(chrom, pos, from_build, to_build) -> dict
-        """
-        self.base = settings.ENSEMBL_REST_BASE
-        self.grch37_base = settings.ENSEMBL_REST_GRCH37_BASE
-        self.timeout = settings.ENSEMBL_REQUEST_TIMEOUT
+    """
+    Liftover using Ensembl REST API with proper assembly name handling.
+    Falls back to chain-based liftover on failure.
+    """
+    
+    def __init__(self, fallback=None, max_retries: int = 3, timeout: int = 10):
+        self.base_url = "https://rest.ensembl.org"
         self.fallback = fallback
-
-    def _map_endpoint(self, from_build: str, chrom: str, pos: int, to_build: str) -> str:
+        self.max_retries = max_retries
+        self.timeout = timeout
+        
+        # Assembly name mapping: UCSC → Ensembl
+        self.assembly_map = {
+            'hg19': 'GRCh37',
+            'hg38': 'GRCh38',
+            'GRCh37': 'GRCh37',
+            'GRCh38': 'GRCh38',
+            'hg37': 'GRCh37',
+        }
+        
+        # Configure session with retries
+        self.session = requests.Session()
+        retry_strategy = Retry(
+            total=max_retries,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+    
+    def _normalize_assembly(self, assembly: str) -> str:
+        """Convert UCSC names (hg19) to Ensembl names (GRCh37)"""
+        assembly_upper = assembly.upper().replace("HG", "hg")
+        return self.assembly_map.get(assembly_upper, assembly)
+    
+    def _normalize_chrom(self, chrom: str) -> str:
+        """Remove 'chr' prefix for Ensembl API"""
+        return chrom.replace('chr', '')
+    
+    def convert_coordinate(
+        self,
+        chrom: str,
+        pos: int,
+        from_build: str = "GRCh37",
+        to_build: str = "GRCh38"
+    ) -> Dict:
         """
-        Compose Ensembl map endpoint for a single base coordinate.
-        We use a tiny window (pos..pos) which Ensembl accepts.
+        Convert coordinate using Ensembl REST API.
+        Falls back to chain-based liftover on failure.
+        
+        Args:
+            chrom: Chromosome (e.g., "chr17" or "17")
+            pos: Position (1-based)
+            from_build: Source assembly (supports hg19, hg38, GRCh37, GRCh38)
+            to_build: Target assembly
+        
+        Returns:
+            Dict with conversion results
         """
-        region = f"{chrom}:{pos}..{pos}"
-        # If mapping from GRCh37 use the grch37 host
-        base = self.grch37_base if "37" in from_build else self.base
-        return f"{base}/map/human/{from_build}/{region}/{to_build}"
-
-    def convert_coordinate(self, chrom: str, pos: int, from_build: str, to_build: str, strand: Optional[str] = "+"):
-        """
-        Attempt to convert via Ensembl REST. On error or empty result, call fallback.
-        Returns a dictionary:
-            {
-              "success": True/False,
-              "lifted_chrom": "chr17",
-              "lifted_pos": 43044295,
-              "confidence": 1.0,
-              "ambiguous": False,
-              "method": "ensembl" or "chain"
-            }
-        """
-        url = self._map_endpoint(from_build, chrom, pos, to_build)
-        headers = DEFAULT_HEADERS.copy()
-        last_exc = None
-
-        for attempt in range(3):
+        # Normalize assembly names
+        from_assembly = self._normalize_assembly(from_build)
+        to_assembly = self._normalize_assembly(to_build)
+        
+        # Normalize chromosome
+        chrom_clean = self._normalize_chrom(chrom)
+        
+        # Build Ensembl API URL
+        # Format: /map/human/{from_assembly}/{region}/{to_assembly}
+        region = f"{chrom_clean}:{pos}..{pos}"
+        url = f"{self.base_url}/map/human/{from_assembly}/{region}/{to_assembly}"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        
+        # Try Ensembl API with retries
+        for attempt in range(1, self.max_retries + 1):
             try:
-                r = requests.get(url, headers=headers, timeout=self.timeout)
-                if r.status_code == 404:
-                    # No mapping found via Ensembl
-                    logger.debug("Ensembl returned 404 for %s", url)
-                    break
-                r.raise_for_status()
-                data = r.json()
-                # Example response shape includes "mappings": [...]
-                mappings = data.get("mappings") or data.get("mapped") or []
-                if not mappings:
-                    logger.info("Ensembl returned no mappings for %s:%d (%s->%s)", chrom, pos, from_build, to_build)
-                    break
-
-                # Keep simple: take first mapping as primary; if more than one, mark ambiguous
-                first = mappings[0]
-                lifted_chrom = first.get("seq_region_name") or first.get("mapped_region", {}).get("seq_region_name")
-                lifted_start = first.get("start") or first.get("mapped_region", {}).get("start")
-                lifted_end = first.get("end") or first.get("mapped_region", {}).get("end")
-                lifted_pos = int(lifted_start) if lifted_start else None
-
-                ambiguous = len(mappings) > 1
-                confidence = 1.0  # Ensembl doesn't provide explicit confidence; set to 1.0
-
-                return {
-                    "success": True if lifted_pos else False,
-                    "lifted_chrom": f"chr{lifted_chrom}" if lifted_chrom and not str(lifted_chrom).startswith("chr") else lifted_chrom,
-                    "lifted_pos": lifted_pos,
-                    "confidence": confidence,
-                    "ambiguous": ambiguous,
-                    "method": "ensembl",
-                    "raw": data
-                }
+                response = self.session.get(
+                    url,
+                    headers=headers,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # Parse Ensembl response
+                if data and 'mappings' in data and len(data['mappings']) > 0:
+                    mapping = data['mappings'][0]
+                    mapped = mapping['mapped']
+                    
+                    # Extract coordinates
+                    mapped_chrom = f"chr{mapped['seq_region_name']}"
+                    mapped_pos = mapped['start']
+                    mapped_strand = mapped.get('strand', 1)
+                    strand_str = '+' if mapped_strand == 1 else '-'
+                    
+                    return {
+                        "success": True,
+                        "lifted_chrom": mapped_chrom,
+                        "lifted_pos": mapped_pos,
+                        "lifted_strand": strand_str,
+                        "confidence": 0.95,  # Ensembl is highly reliable
+                        "method": "Ensembl_REST_API",
+                        "original": {
+                            "chrom": chrom,
+                            "pos": pos,
+                            "build": from_build
+                        }
+                    }
+                else:
+                    logger.warning(f"No mapping found in Ensembl response for {chrom}:{pos}")
+                    break  # No mapping, try fallback
+                    
+            except requests.exceptions.HTTPError as e:
+                logger.warning(f"Ensembl liftover attempt {attempt} failed: {e}")
+                if attempt < self.max_retries:
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                continue
+                
             except Exception as e:
-                last_exc = e
-                logger.warning("Ensembl liftover attempt %d failed: %s", attempt + 1, e)
-                time.sleep(1 + attempt * 2)
-
-        # Fall back
-        logger.info("Falling back to chain-file liftover for %s:%d", chrom, pos)
+                logger.error(f"Ensembl API error: {e}")
+                break
+        
+        # Fall back to chain-based liftover
         if self.fallback:
-            return self.fallback.convert_coordinate(chrom, pos, from_build, to_build)
-        else:
-            return {"success": False, "error": str(last_exc or "No mapping"), "method": "ensembl_fallback_failed"}
+            logger.info(f"Falling back to chain-file liftover for {chrom}:{pos}")
+            try:
+                return self.fallback.convert_coordinate(
+                    chrom, pos, from_build, to_build
+                )
+            except Exception as e:
+                logger.error(f"Fallback liftover also failed: {e}")
+        
+        # Complete failure
+        return {
+            "success": False,
+            "error": "Both Ensembl API and chain-based liftover failed",
+            "original": {
+                "chrom": chrom,
+                "pos": pos,
+                "build": from_build
+            }
+        }
+    
+    def convert_region(
+        self,
+        chrom: str,
+        start: int,
+        end: int,
+        from_build: str = "GRCh37",
+        to_build: str = "GRCh38"
+    ) -> Dict:
+        """Convert a genomic region"""
+        
+        # Normalize names
+        from_assembly = self._normalize_assembly(from_build)
+        to_assembly = self._normalize_assembly(to_build)
+        chrom_clean = self._normalize_chrom(chrom)
+        
+        region = f"{chrom_clean}:{start}..{end}"
+        url = f"{self.base_url}/map/human/{from_assembly}/{region}/{to_assembly}"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        
+        try:
+            response = self.session.get(url, headers=headers, timeout=self.timeout)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data and 'mappings' in data and len(data['mappings']) > 0:
+                mapping = data['mappings'][0]
+                mapped = mapping['mapped']
+                
+                return {
+                    "success": True,
+                    "lifted_chrom": f"chr{mapped['seq_region_name']}",
+                    "lifted_start": mapped['start'],
+                    "lifted_end": mapped['end'],
+                    "confidence": 0.95,
+                    "method": "Ensembl_REST_API",
+                    "original": {
+                        "chrom": chrom,
+                        "start": start,
+                        "end": end,
+                        "build": from_build
+                    }
+                }
+            
+        except Exception as e:
+            logger.error(f"Region liftover failed: {e}")
+        
+        # Fallback
+        if self.fallback:
+            return self.fallback.convert_region(chrom, start, end, from_build, to_build)
+        
+        return {
+            "success": False,
+            "error": "Region liftover failed",
+            "original": {"chrom": chrom, "start": start, "end": end, "build": from_build}
+        }
