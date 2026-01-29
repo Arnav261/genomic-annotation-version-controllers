@@ -17,6 +17,7 @@ import csv
 from io import StringIO
 import numpy as np
 from app.database import SessionLocal, Job, APIKey
+from app.services.semantic_reconciliation import SemanticReconciliationEngine, SemanticAnnotation
 
 # Configure logging FIRST
 logging.basicConfig(
@@ -44,6 +45,15 @@ except ImportError as e:
 SERVICES: Dict[str, Any] = {}
 startup_time = time.time()
 job_storage: Dict[str, Any] = {}
+
+# After the feature_extractor / before confidence_predictor instantiation in your initializer:
+try:
+    sem_engine = SemanticReconciliationEngine()
+    SERVICES["semantic_engine"] = sem_engine
+    logger.info("SemanticReconciliationEngine initialized.")
+except Exception as e:
+    SERVICES["semantic_engine"] = None
+    logger.warning("SemanticReconciliationEngine initialization failed: %s", e)
 
 # Initialize FastAPI
 app = FastAPI(
@@ -1212,34 +1222,119 @@ def get_job_status(job_id: str):
 @app.post("/semantic/reconcile")
 def semantic_reconcile(
     gene_symbol: str = Query(...),
-    annotations: List[Dict] = None,
+    annotations: List[Dict] = None
 ):
     """
-    Reconcile conflicting gene descriptions or annotations.
-    If a semantic engine is present (SERVICES['semantic_engine']), call it;
-    otherwise return a simple majority/consensus summary.
+    Reconcile conflicting annotations for a single gene.
+    Request: POST /semantic/reconcile?gene_symbol=BRCA1
+    Body: JSON array of objects: [{"description":"...", "source":"NCBI", ...}, ...]
     """
+    if not SERVICES.get("semantic_engine"):
+        raise HTTPException(status_code=503, detail="Semantic reconciliation service unavailable")
     if not annotations:
         raise HTTPException(status_code=400, detail="No annotations provided")
-    # Use semantic engine if available
-    if SERVICES.get("semantic_engine"):
+    try:
+        # Convert dicts to SemanticAnnotation dataclass instances expected by the engine
+        anns = []
+        for a in annotations:
+            sa = SemanticAnnotation(
+                gene_symbol = gene_symbol,
+                description = a.get("description", "") or "",
+                source = a.get("source", "unknown"),
+                biological_process = a.get("biological_process") or a.get("biological_processes") or [],
+                molecular_function = a.get("molecular_function") or a.get("molecular_functions") or [],
+                cellular_component = a.get("cellular_component") or a.get("cellular_components") or [],
+                protein_domains = a.get("protein_domains") or [],
+                synonyms = a.get("synonyms") or [],
+                confidence = float(a.get("confidence", 0.8) or 0.8)
+            )
+            anns.append(sa)
+
+        result = SERVICES["semantic_engine"].reconcile_annotations(gene_symbol, anns)
+        return result
+    except Exception as e:
+        logger.exception("Semantic reconciliation failed for %s", gene_symbol)
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/semantic/batch")
+async def semantic_batch(
+    gene_annotations: Dict[str, List[Dict]],
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Batch reconcile many genes.
+    Body format: {"BRCA1": [ {annotation}, ... ], "TP53": [ ... ] }
+    Returns job_id; results are saved to Job.results (JSON) when completed.
+    """
+    if not gene_annotations:
+        raise HTTPException(status_code=400, detail="No gene annotations provided")
+    if not SERVICES.get("semantic_engine"):
+        raise HTTPException(status_code=503, detail="Semantic reconciliation service unavailable")
+
+    job_id = uuid.uuid4().hex[:8]
+
+    # Create DB job record
+    db = SessionLocal()
+    try:
+        job = Job(job_id=job_id, job_type="semantic_batch", status="queued", total_items=len(gene_annotations))
+        db.add(job)
+        db.commit()
+    finally:
+        db.close()
+
+    def process():
+        db = SessionLocal()
         try:
-            return SERVICES["semantic_engine"].reconcile_annotations(gene_symbol, annotations)
+            j = db.query(Job).filter(Job.job_id == job_id).first()
+            j.status = "processing"
+            db.commit()
+
+            results = {}
+            processed = 0
+            for gene, anns_list in gene_annotations.items():
+                try:
+                    # convert dicts to dataclasses
+                    anns = []
+                    for a in anns_list:
+                        sa = SemanticAnnotation(
+                            gene_symbol = gene,
+                            description = a.get("description", "") or "",
+                            source = a.get("source", "unknown"),
+                            biological_process = a.get("biological_process") or a.get("biological_processes") or [],
+                            molecular_function = a.get("molecular_function") or a.get("molecular_functions") or [],
+                            cellular_component = a.get("cellular_component") or a.get("cellular_components") or [],
+                            protein_domains = a.get("protein_domains") or [],
+                            synonyms = a.get("synonyms") or [],
+                            confidence = float(a.get("confidence", 0.8) or 0.8)
+                        )
+                        anns.append(sa)
+
+                    res = SERVICES["semantic_engine"].reconcile_annotations(gene, anns)
+                except Exception as e:
+                    logger.exception("Semantic reconcile failed for %s", gene)
+                    res = {"gene_symbol": gene, "status": "error", "error": str(e)}
+                results[gene] = res
+                processed += 1
+                j.processed_items = processed
+                db.commit()
+
+            j.status = "completed"
+            j.results = results
+            j.metadata = {"n_genes": len(results)}
+            db.commit()
+            logger.info("Semantic batch job %s completed: %d genes", job_id, len(results))
+
         except Exception as e:
-            logger.exception("Semantic engine failed; falling back to simple consensus")
-    # Simple fallback: pick most common description and list sources
-    descs = {}
-    for ann in annotations:
-        desc = ann.get("description", "").strip()
-        if not desc:
-            continue
-        descs.setdefault(desc, []).append(ann.get("source", "unknown"))
-    if not descs:
-        return {"gene": gene_symbol, "consensus": None, "notes": "No usable descriptions"}
-    # choose description with most sources
-    consensus_desc = max(descs.items(), key=lambda kv: len(kv[1]))[0]
-    sources = descs[consensus_desc]
-    return {"gene": gene_symbol, "consensus_description": consensus_desc, "sources": sources, "method": "simple_majority_fallback"}
+            logger.exception("Semantic batch job failed")
+            j.status = "failed"
+            j.errors = [str(e)]
+            db.commit()
+        finally:
+            db.close()
+
+    # schedule background processing
+    background_tasks.add_task(process)
+    return {"job_id": job_id, "status_endpoint": f"/job-status/{job_id}"}
 
 @app.on_event("startup")
 async def startup_event():
