@@ -917,7 +917,7 @@ Or upload a file below..."></textarea>
             <li>VCF file processing with annotation preservation</li>
             <li>Batch processing with background job tracking</li>
             <li>Semantic annotation reconciliation</li>
-            <li>Clinical-grade validation standards</li>
+            <li>Checking for clinical-grade validation</li>
             <li>RESTful API with OpenAPI documentation</li>
             <li>Real-time job progress tracking</li>
             <li>Multiple export formats (JSON, CSV, VCF)</li>
