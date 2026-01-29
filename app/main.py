@@ -217,7 +217,7 @@ def landing_page(request: Request):
     vcf_available = SERVICES.get("vcf_converter") is not None
 
     return templates.TemplateResponse(
-        "landing.html",
+        "index.html",
         {
             "request": request,
             "active_jobs": active_jobs,
