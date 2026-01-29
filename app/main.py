@@ -18,10 +18,16 @@ from io import StringIO
 from app.database import SessionLocal, Job
 import numpy as np
 from app.config import settings
-try:
-    from app.ml.feature_extractor import FeatureExtractor
-except ImportError:
-    FeatureExtractor = None
+OPTIONAL_SERVICES = {}
+
+def safe_import(name, path):
+    try:
+        module = __import__(path, fromlist=[name])
+        OPTIONAL_SERVICES[name] = getattr(module, name)
+    except Exception:
+        OPTIONAL_SERVICES[name] = None
+safe_import('FeatureExtractor', 'app.services.feature_extractor')
+safe_import('ConfidencePredictor', 'app.services.confidence_predictor')
 startup_time = time.time()
 
 
