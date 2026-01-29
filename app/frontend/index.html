@@ -1,60 +1,363 @@
-const base = ""; // keep empty if same origin
-const API_KEY = localStorage.getItem('api_key') || '';
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Genomic Resonance — Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#1f7ae0;
+      --accent-2:#0ea5a4;
+      --danger:#ef4444;
+      --radius:12px;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{ height:100%; margin:0; background:var(--bg); color:#0f172a; }
+    .container{ max-width:1200px; margin:28px auto; padding:20px; }
+    header{ display:flex; gap:20px; align-items:center; margin-bottom:18px; }
+    header h1{ font-size:1.5rem; margin:0; font-weight:700; }
+    header p{ margin:0; color:var(--muted); font-family:"Source Serif 4", serif; font-size:0.95rem; }
+    .grid{ display:grid; grid-template-columns: 1fr 380px; gap:18px; align-items:start; }
+    .card{ background:var(--card); padding:16px; border-radius:var(--radius); box-shadow:0 6px 22px rgba(16,24,40,0.06); }
+    .card h2{ margin:0 0 10px 0; font-size:1.05rem; }
+    .muted{ color:var(--muted); font-size:0.95rem; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+    input[type="text"], input[type="number"], select, textarea {
+      border:1px solid #e6eef8; padding:8px 10px; border-radius:8px; font-size:0.95rem; width:100%;
+      box-sizing:border-box; background:#fbfdff;
+    }
+    label { font-size:0.9rem; color:#111827; display:flex; gap:6px; align-items:center; }
+    .controls { display:flex; gap:8px; align-items:center; }
+    .button{ background:var(--accent); color:white; padding:10px 12px; border-radius:9px; border:none; cursor:pointer; font-weight:600; }
+    .button.secondary{ background:transparent; color:var(--accent); border:1px solid #dbeafe; }
+    .button.danger{ background:var(--danger); }
+    .result { font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; background:#f8fafc; padding:10px; border-radius:8px; white-space:pre-wrap; max-height:320px; overflow:auto; }
+    .small { font-size:0.85rem; color:var(--muted); }
+    .status-box { padding:12px; border-radius:10px; background:linear-gradient(180deg,#ffffff,#fbfdff); border:1px solid #eef2ff; }
+    .field-inline { display:flex; gap:8px; align-items:center; }
+    .flex-col { display:flex; flex-direction:column; gap:8px; }
+    footer { margin-top:18px; color:var(--muted); font-size:0.85rem; }
+    @media (max-width: 980px) {
+      .grid{ grid-template-columns: 1fr; }
+      header { flex-direction:column; align-items:flex-start; gap:6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Genomic Resonance</h1>
+        <p class="muted">Liftover, VCF conversion, semantic reconciliation and ML‑assisted confidence — interactive dashboard</p>
+      </div>
+      <div style="margin-left:auto; text-align:right;">
+        <div class="small muted">v4.0 • <span id="health-status">loading...</span></div>
+        <div style="margin-top:6px;">
+          <input id="api-key" type="text" placeholder="Enter API key (saved locally)" style="width:220px;padding:8px;border-radius:8px;border:1px solid #e6eef8;" />
+          <button class="button secondary" id="save-key">Save</button>
+        </div>
+      </div>
+    </header>
 
-async function runSingle() {
-  const chrom = document.getElementById('chrom').value;
-  const pos = document.getElementById('pos').value;
-  const from = document.getElementById('from').value;
-  const to = document.getElementById('to').value;
-  const url = `${base}/liftover/single?chrom=${encodeURIComponent(chrom)}&pos=${encodeURIComponent(pos)}&from_build=${encodeURIComponent(from)}&to_build=${encodeURIComponent(to)}`;
-  const res = await fetch(url, { method: 'POST', headers: { 'X-API-Key': API_KEY } });
-  const json = await res.json();
-  document.getElementById('single-result').textContent = JSON.stringify(json, null, 2);
-}
+    <div class="grid">
+      <main>
+        <!-- Single liftover -->
+        <div class="card" id="single-card">
+          <h2>Single Liftover</h2>
+          <div class="row">
+            <div style="flex:1;">
+              <label>Chromosome <input id="chrom" type="text" value="chr17" /></label>
+            </div>
+            <div style="width:160px;">
+              <label>Position <input id="pos" type="number" value="41196312" /></label>
+            </div>
+            <div style="width:120px;">
+              <label>From <input id="from" type="text" value="hg19" /></label>
+            </div>
+            <div style="width:120px;">
+              <label>To <input id="to" type="text" value="hg38" /></label>
+            </div>
+            <div class="controls">
+              <button class="button" id="run-single">Run</button>
+            </div>
+          </div>
+          <div class="small muted">Include ML confidence if model is available.</div>
+          <div style="margin-top:10px;" id="single-result" class="result">Result will appear here.</div>
+        </div>
 
-async function runBatch() {
-  // read plain text or simple JSON from a textarea, or build from a small file input
-  const txt = document.getElementById('batch-input').value;
-  let coords;
-  try {
-    coords = JSON.parse(txt);
-  } catch (e) {
-    alert('Batch input must be JSON array like: [{"chrom":"chr1","pos":123},{"chrom":"chr2","pos":456}]');
-    return;
-  }
-  const res = await fetch(`${base}/liftover/batch?from_build=hg19&to_build=hg38`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-    body: JSON.stringify(coords)
-  });
-  const json = await res.json();
-  document.getElementById('batch-result').textContent = JSON.stringify(json, null, 2);
-}
+        <div style="height:14px;"></div>
 
-async function uploadVCF() {
-  const f = document.getElementById('vcffile').files[0];
-  if (!f) { alert('Select file'); return; }
-  const fd = new FormData();
-  fd.append('file', f);
-  const res = await fetch(`${base}/vcf/convert?from_build=hg19&to_build=hg38`, {
-    method: 'POST',
-    headers: { 'X-API-Key': API_KEY },
-    body: fd
-  });
-  const json = await res.json();
-  document.getElementById('vcf-result').textContent = JSON.stringify(json, null, 2);
-}
+        <!-- Batch liftover -->
+        <div class="card" id="batch-card">
+          <h2>Batch Liftover</h2>
+          <div class="small muted">Paste a JSON array of coordinates, e.g. [{"chrom":"chr1","pos":12345}, ...]</div>
+          <div style="margin-top:8px;">
+            <textarea id="batch-input" rows="6" placeholder='[{"chrom":"chr17","pos":41196312}]' style="width:100%;"></textarea>
+          </div>
+          <div style="margin-top:8px;" class="row">
+            <button class="button" id="run-batch">Start Batch</button>
+            <button class="button secondary" id="clear-batch">Clear</button>
+            <div class="small muted" id="batch-info"></div>
+          </div>
+          <div style="margin-top:10px;" id="batch-result" class="result">Batch job results will appear here.</div>
+        </div>
 
-async function reconcileSemantic() {
-  const gene = document.getElementById('sem-gene').value;
-  const annsText = document.getElementById('sem-anns').value;
-  let anns;
-  try { anns = JSON.parse(annsText); } catch(e){ alert('annotations must be JSON array'); return; }
-  const res = await fetch(`${base}/semantic/reconcile?gene_symbol=${encodeURIComponent(gene)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-    body: JSON.stringify(anns)
-  });
-  const json = await res.json();
-  document.getElementById('semantic-result').textContent = JSON.stringify(json, null, 2);
-}
+        <div style="height:14px;"></div>
+
+        <!-- VCF convert -->
+        <div class="card" id="vcf-card">
+          <h2>VCF Conversion</h2>
+          <div class="small muted">Upload a VCF (.vcf or .vcf.gz). Large files are processed in background; you will receive a job id.</div>
+          <div style="margin-top:8px;" class="row">
+            <input id="vcf-file" type="file" accept=".vcf,.vcf.gz" />
+            <button class="button" id="upload-vcf">Upload & Convert</button>
+          </div>
+          <div style="margin-top:8px;">
+            <div class="small muted">Most recent VCF job:</div>
+            <div id="vcf-result" class="result">No recent VCF jobs.</div>
+          </div>
+        </div>
+
+        <div style="height:14px;"></div>
+
+        <!-- Semantic Reconciliation -->
+        <div class="card" id="semantic-card">
+          <h2>Semantic Reconciliation</h2>
+          <div class="small muted">Provide a gene symbol and array of annotations to reconcile. Annotations are objects with "description" and "source".</div>
+          <div style="margin-top:8px;" class="flex-col">
+            <label>Gene symbol <input id="sem-gene" type="text" value="BRCA1" /></label>
+            <label>Annotations (JSON array)
+              <textarea id="sem-anns" rows="6" placeholder='[{"description":"breast cancer gene","source":"NCBI"}, {"description":"BRCA1 (tumor suppressor)","source":"Ensembl"}]'></textarea>
+            </label>
+            <div class="row">
+              <button class="button" id="run-semantic">Reconcile</button>
+              <button class="button secondary" id="clear-semantic">Clear</button>
+            </div>
+            <div id="semantic-result" class="result">Semantic result will appear here.</div>
+          </div>
+        </div>
+      </main>
+
+      <aside>
+        <div class="card status-box">
+          <h3 style="margin-top:0">System Status</h3>
+          <div class="small muted">Live status & quick actions</div>
+          <div style="margin-top:10px;">
+            <button class="button" id="refresh-health">Refresh</button>
+            <button class="button secondary" id="list-services">Services</button>
+          </div>
+          <div style="margin-top:10px;" id="health-panel" class="result">Loading health...</div>
+        </div>
+
+        <div style="height:12px;"></div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Job Monitor</h3>
+          <div class="small muted">Enter a job id to poll status.</div>
+          <div style="margin-top:8px;" class="row">
+            <input id="job-id" type="text" placeholder="job id" />
+            <button class="button" id="poll-job">Poll</button>
+          </div>
+          <div style="margin-top:8px;" id="job-status" class="result">No job polled yet.</div>
+        </div>
+
+        <div style="height:12px;"></div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Quick Links</h3>
+          <div class="small muted">
+            <ul>
+              <li>API docs: <a href="/docs" target="_blank">/docs</a></li>
+              <li>Health: <a href="/health" target="_blank">/health</a></li>
+              <li>Services: <a href="/_services" target="_blank">/_services</a></li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      <div class="small muted">Genomic Resonance — please ensure chain files are present in <code>app/data/chains</code> and an API key is configured.</div>
+    </footer>
+  </div>
+
+  <script>
+    // Helper: base path (empty if same origin)
+    const base = "";
+
+    // API key management
+    const apiKeyInput = document.getElementById('api-key');
+    const savedKey = localStorage.getItem('gavc_api_key') || '';
+    if (savedKey) apiKeyInput.value = savedKey;
+    document.getElementById('save-key').addEventListener('click', () => {
+      localStorage.setItem('gavc_api_key', apiKeyInput.value.trim());
+      alert('API key saved locally.');
+      refreshHealth();
+    });
+
+    function getHeaders(extra={}) {
+      const k = localStorage.getItem('gavc_api_key') || apiKeyInput.value.trim();
+      const headers = Object.assign({}, extra);
+      if (k) headers['X-API-Key'] = k;
+      return headers;
+    }
+
+    // Utility to show JSON nicely
+    function showJSON(elId, obj) {
+      document.getElementById(elId).textContent = JSON.stringify(obj, null, 2);
+    }
+
+    // Health
+    async function refreshHealth() {
+      try {
+        const res = await fetch(base + '/health', { headers: getHeaders() });
+        const j = await res.json();
+        document.getElementById('health-panel').textContent = JSON.stringify(j, null, 2);
+        document.getElementById('health-status').textContent = j.status || 'n/a';
+      } catch (e) {
+        document.getElementById('health-panel').textContent = 'Unable to reach /health: ' + String(e);
+        document.getElementById('health-status').textContent = 'offline';
+      }
+    }
+    document.getElementById('refresh-health').addEventListener('click', refreshHealth);
+
+    // Services info
+    document.getElementById('list-services').addEventListener('click', async () => {
+      try {
+        const res = await fetch(base + '/_services', { headers: getHeaders() });
+        const j = await res.json();
+        showJSON('health-panel', j);
+      } catch (e) {
+        showJSON('health-panel', { error: String(e) });
+      }
+    });
+
+    // Single liftover
+    document.getElementById('run-single').addEventListener('click', async () => {
+      const chrom = document.getElementById('chrom').value.trim();
+      const pos = document.getElementById('pos').value.trim();
+      const from = document.getElementById('from').value.trim() || 'hg19';
+      const to = document.getElementById('to').value.trim() || 'hg38';
+      const url = `${base}/liftover/single?chrom=${encodeURIComponent(chrom)}&pos=${encodeURIComponent(pos)}&from_build=${encodeURIComponent(from)}&to_build=${encodeURIComponent(to)}`;
+      try {
+        const res = await fetch(url, { method: 'POST', headers: getHeaders() });
+        const j = await res.json();
+        showJSON('single-result', j);
+      } catch (e) {
+        showJSON('single-result', { error: String(e) });
+      }
+    });
+
+    // Batch liftover
+    document.getElementById('run-batch').addEventListener('click', async () => {
+      const raw = document.getElementById('batch-input').value.trim();
+      if (!raw) { alert('Provide JSON array of coordinates'); return; }
+      let coords;
+      try { coords = JSON.parse(raw); if (!Array.isArray(coords)) throw Error('Not an array'); }
+      catch (e) { alert('Invalid JSON input: ' + e); return; }
+      document.getElementById('batch-info').textContent = 'Submitting batch...';
+      try {
+        const res = await fetch(`${base}/liftover/batch?from_build=hg19&to_build=hg38`, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, getHeaders()),
+          body: JSON.stringify(coords)
+        });
+        const j = await res.json();
+        showJSON('batch-result', j);
+        document.getElementById('batch-info').textContent = `Queued job: ${j.job_id || 'unknown'}`;
+      } catch (e) {
+        showJSON('batch-result', { error: String(e) });
+        document.getElementById('batch-info').textContent = '';
+      }
+    });
+    document.getElementById('clear-batch').addEventListener('click', () => {
+      document.getElementById('batch-input').value = '';
+      document.getElementById('batch-result').textContent = 'Cleared';
+    });
+
+    // VCF upload and job polling
+    document.getElementById('upload-vcf').addEventListener('click', async () => {
+      const f = document.getElementById('vcf-file').files[0];
+      if (!f) { alert('Choose a VCF file first'); return; }
+      const fd = new FormData();
+      fd.append('file', f);
+      try {
+        const res = await fetch(`${base}/vcf/convert?from_build=hg19&to_build=hg38`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: fd
+        });
+        const j = await res.json();
+        if (j.job_id) {
+          showJSON('vcf-result', { queued: j });
+          // auto-poll job status
+          pollJobStatus(j.job_id, 'vcf-result');
+        } else {
+          showJSON('vcf-result', j);
+        }
+      } catch (e) {
+        showJSON('vcf-result', { error: String(e) });
+      }
+    });
+
+    // Semantic reconcile
+    document.getElementById('run-semantic').addEventListener('click', async () => {
+      const gene = document.getElementById('sem-gene').value.trim();
+      const raw = document.getElementById('sem-anns').value.trim();
+      if (!gene) { alert('Provide a gene symbol'); return; }
+      let anns;
+      try { anns = JSON.parse(raw); if (!Array.isArray(anns)) throw Error('Annotations must be an array'); }
+      catch (e) { alert('Invalid annotations JSON: ' + e); return; }
+      try {
+        const res = await fetch(`${base}/semantic/reconcile?gene_symbol=${encodeURIComponent(gene)}`, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, getHeaders()),
+          body: JSON.stringify(anns)
+        });
+        const j = await res.json();
+        showJSON('semantic-result', j);
+      } catch (e) {
+        showJSON('semantic-result', { error: String(e) });
+      }
+    });
+    document.getElementById('clear-semantic').addEventListener('click', () => {
+      document.getElementById('sem-anns').value = '';
+      document.getElementById('semantic-result').textContent = 'Cleared';
+    });
+
+    // Job polling
+    document.getElementById('poll-job').addEventListener('click', async () => {
+      const id = document.getElementById('job-id').value.trim();
+      if (!id) { alert('Enter a job id'); return; }
+      pollJobStatus(id, 'job-status');
+    });
+
+    async function pollJobStatus(jobId, elId, retries = 30, interval = 2000) {
+      const el = document.getElementById(elId);
+      el.textContent = `Polling job ${jobId}...`;
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch(`${base}/job-status/${encodeURIComponent(jobId)}`, { headers: getHeaders() });
+          const j = await res.json();
+          showJSON(elId, j);
+          if (j.status === 'completed' || j.status === 'failed') return j;
+        } catch (e) {
+          el.textContent = 'Polling error: ' + String(e);
+          return null;
+        }
+        await new Promise(r => setTimeout(r, interval));
+      }
+      el.textContent = `Polling timed out after ${retries * interval / 1000}s`;
+      return null;
+    }
+
+    // Auto-refresh health on load
+    refreshHealth();
+  </script>
+</body>
+</html>
