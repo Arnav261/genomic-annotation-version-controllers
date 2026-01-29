@@ -58,7 +58,8 @@ class EnsemblLiftover:
         chrom: str,
         pos: int,
         from_build: str = "GRCh37",
-        to_build: str = "GRCh38"
+        to_build: str = "GRCh38",
+        strand: str = "+"
     ) -> Dict:
         """
         Convert coordinate using Ensembl REST API.
@@ -69,6 +70,7 @@ class EnsemblLiftover:
             pos: Position (1-based)
             from_build: Source assembly (supports hg19, hg38, GRCh37, GRCh38)
             to_build: Target assembly
+            strand: Strand orientation ("+", "-", or None)
         
         Returns:
             Dict with conversion results
@@ -145,7 +147,7 @@ class EnsemblLiftover:
             logger.info(f"Falling back to chain-file liftover for {chrom}:{pos}")
             try:
                 return self.fallback.convert_coordinate(
-                    chrom, pos, from_build, to_build
+                    chrom, pos, from_build, to_build, strand
                 )
             except Exception as e:
                 logger.error(f"Fallback liftover also failed: {e}")
