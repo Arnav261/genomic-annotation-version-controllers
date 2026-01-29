@@ -129,6 +129,12 @@ class BatchJob:
             "metadata": self.metadata
         }
 
+try:
+    from app.ml.feature_extractor import FeatureExtractor
+except ImportError:
+    FeatureExtractor = None
+
+
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
     db = SessionLocal()
