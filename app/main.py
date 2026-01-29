@@ -6,6 +6,7 @@ Bioinformatics Platform
 from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, UploadFile, File, Query, Path as FastAPIPath
 from fastapi.templating import Jinja2Templates
 from fastapi import Form
+from Path import Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, HTMLResponse, PlainTextResponse
 from typing import List, Dict, Any, Optional
@@ -22,7 +23,7 @@ from app.database import SessionLocal, Job, APIKey
 from app.services.semantic_reconciliation import SemanticReconciliationEngine, SemanticAnnotation
 
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="app/templates")
 # Configure logging FIRST
 logging.basicConfig(
     level=logging.INFO,
@@ -182,13 +183,7 @@ class BatchJob:
         }
 
 
-# Updated landing_page function for main.py
-# Replace the existing @app.get("/") function with this
-
-from pathlib import Path
-
-# Load comprehensive landing page template
-LANDING_PAGE_TEMPLATE_PATH = Path(__file__).parent / "templates" / "landing_page.html"
+LANDING_PAGE_TEMPLATE_PATH = Path(__file__).parent / "templates" / "index.html"
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page(request: Request):
