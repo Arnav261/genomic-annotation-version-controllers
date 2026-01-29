@@ -4,7 +4,7 @@ ML-Based Confidence Predictor - FIXED
 import logging
 import pickle
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import numpy as np
 
 from app.config import settings
@@ -243,64 +243,74 @@ class ConfidencePredictor:
             return None
         
         try:
+            # For CalibratedClassifierCV, access the base estimator
             if hasattr(self.model, 'calibrated_classifiers_'):
                 base_estimator = self.model.calibrated_classifiers_[0].estimator
             else:
                 base_estimator = self.model
-        
-            # Get feature importances from the base GradientBoostingClassifier
+            
             if hasattr(base_estimator, 'feature_importances_'):
                 importances = base_estimator.feature_importances_
+                
                 importance_dict = {}
                 for i, importance in enumerate(importances):
                     if i < len(self.feature_names):
                         importance_dict[self.feature_names[i]] = float(importance)
+                
                 return importance_dict
             else:
                 logger.warning("Model does not have feature_importances_ attribute")
                 return None
+                
         except Exception as e:
             logger.error(f"Failed to get feature importance: {e}")
             return None
 
-    def predict_batch(self, features_list: List[np.ndarray]) -> List[float]:
-        """Predict confidence scores for a batch of features"""
-        return [self.predict_confidence(features) for features in features_list]
+def predict_batch(self, features_list: List[np.ndarray]) -> List[float]:
+    """Predict confidence scores for batch of features"""
+    return [self.predict_confidence(features) for features in features_list]
 
-    def interpret_confidence(self, confidence: float) -> Dict:
-        """Provide human-readable interpretation"""
-        if confidence >= 0.95:
+    def interpret_confidence(self, confidence: float) -> Dict[str, Any]:
+        """
+        Interpret ML confidence score with clinical recommendations
+        
+        Args:
+            confidence: Confidence score between 0 and 1
+            
+        Returns:
+            Dictionary with interpretation details
+        """
+        # Normalize to ensure it's between 0 and 1
+        confidence = float(confidence)
+        confidence = max(0.0, min(1.0, confidence))
+        
+        if confidence >= 0.90:
             level = "VERY_HIGH"
-            interpretation = "Liftover highly reliable"
-            recommendation = "Safe for automated use"
-            color = "green"
-        elif confidence >= 0.85:
-            level = "HIGH"
-            interpretation = "Liftover reliable"
-            recommendation = "Acceptable for publication"
+            interpretation = "Liftover highly reliable for clinical use"
+            recommendation = "Suitable for clinical-grade applications"
             color = "green"
         elif confidence >= 0.70:
-            level = "MODERATE"
-            interpretation = "Liftover likely correct with uncertainty"
-            recommendation = "Verify for critical applications"
-            color = "yellow"
+            level = "HIGH"
+            interpretation = "Liftover reliable for research use"
+            recommendation = "Suitable for research applications with standard validation"
+            color = "blue"
         elif confidence >= 0.50:
-            level = "LOW"
-            interpretation = "Liftover uncertain"
-            recommendation = "Manual verification strongly recommended"
-            color = "orange"
+            level = "MODERATE"
+            interpretation = "Liftover acceptable but requires verification"
+            recommendation = "Verify with additional validation methods"
+            color = "yellow"
         else:
-            level = "VERY_LOW"
-            interpretation = "Liftover likely incorrect"
-            recommendation = "Do not use - manual curation required"
+            level = "LOW"
+            interpretation = "Liftover uncertain and requires manual review"
+            recommendation = "Manual review and alternative validation required"
             color = "red"
-            return {
-                'confidence_score': float(confidence),
-                'confidence_level': level,
-                'interpretation': interpretation,
-                'recommendation': recommendation,
-                'color_code': color,
-                'threshold_clinical': confidence >= 0.90,
-                'threshold_research': confidence >= 0.70,
-                'threshold_exploratory': confidence >= 0.50
-                }
+        return {
+            'confidence_score': confidence,
+            'confidence_level': level,
+            'interpretation': interpretation,
+            'recommendation': recommendation,
+            'color_code': color,
+            'threshold_clinical': confidence >= 0.90,
+            'threshold_research': confidence >= 0.70,
+            'threshold_exploratory': confidence >= 0.50
+        }

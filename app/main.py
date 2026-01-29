@@ -1,6 +1,6 @@
 """
-Genomic Coordinate Liftover Service - OPTIMIZED VERSION
-Combines best features from both implementations with bug fixes
+Genomic Coordinate Liftover Service - Resonance
+Professional Research-Grade Bioinformatics Platform
 """
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Query, Path as FastAPIPath
@@ -16,8 +16,6 @@ import json
 import csv
 from io import StringIO
 import numpy as np
-from app.services.feature_extractor import FeatureExtractor
-from app.services.confidence_predictor import ConfidencePredictor
 
 # Configure logging
 logging.basicConfig(
@@ -28,44 +26,11 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI
 app = FastAPI(
-    title="Genomic Coordinate Liftover Service",
-    description="""
-    ## Professional Research-Grade Bioinformatics Platform
-    
-    ### Core Capabilities
-    
-    **Coordinate Liftover**
-    - UCSC chain file-based coordinate conversion
-    - Support for GRCh37/hg19 to GRCh38/hg38
-    - ML-enhanced confidence prediction
-    - Validated against NCBI RefSeq coordinates
-    
-    **VCF File Processing**
-    - Parse and convert variant files between assemblies
-    - Format validation and quality control
-    - Preservation of sample and genotype data
-    
-    **Semantic Reconciliation**
-    - Natural language processing of gene descriptions
-    - Biological term extraction and normalization
-    - Multi-source annotation consensus
-    
-    **AI Conflict Resolution**
-    - Machine learning-based clustering (DBSCAN, Agglomerative)
-    - Statistical confidence metrics
-    - Evidence-weighted decision making
-    
-    ### Data Sources
-    
-    Integrates data from NCBI Gene, Ensembl, RefSeq, GENCODE, UCSC Genome Browser, UniProt, and HGNC.
-    """,
-    version="4.0.0-optimized",
+    title="Resonance - Genomic Coordinate Liftover",
+    description="Professional research-grade genomic coordinate conversion platform",
+    version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc",
-    contact={
-        "name": "Arnav Asher",
-        "email": "arnavasher007@gmail.com",
-    }
+    redoc_url="/redoc"
 )
 
 # CORS middleware
@@ -81,7 +46,7 @@ app.add_middleware(
 startup_time = time.time()
 job_storage: Dict[str, Any] = {}
 
-# Service initialization with graceful degradation
+# Service initialization
 SERVICES = {}
 
 def initialize_services():
@@ -94,9 +59,6 @@ def initialize_services():
         ('feature_extractor', 'app.services.feature_extractor', 'FeatureExtractor', None),
         ('confidence_predictor', 'app.services.confidence_predictor', 'ConfidencePredictor', None),
         ('validation_engine', 'app.services.validation_engine', 'ValidationEngine', None),
-        ('ai_resolver', 'app.services.real_ai_resolver', 'RealAIConflictResolver', None),
-        ('semantic_engine', 'app.services.semantic_reconciliation', 'SemanticReconciliationEngine', None),
-        ('validation_suite', 'app.validation.validation_suite', 'GenomicValidationSuite', None)
     ]
     
     for service_name, module_path, class_name, dependency in service_configs:
@@ -105,7 +67,7 @@ def initialize_services():
             service_class = getattr(module, class_name)
             
             if dependency and dependency not in SERVICES:
-                logger.warning(f"⚠ {service_name} skipped: dependency '{dependency}' not available")
+                logger.warning(f"Service {service_name} skipped: dependency '{dependency}' not available")
                 SERVICES[service_name] = None
                 continue
             
@@ -114,9 +76,9 @@ def initialize_services():
             else:
                 SERVICES[service_name] = service_class()
             
-            logger.info(f"✓ {service_name} initialized")
+            logger.info(f"Service {service_name} initialized")
         except Exception as e:
-            logger.error(f"✗ {service_name} failed: {e}")
+            logger.error(f"Service {service_name} failed: {e}")
             SERVICES[service_name] = None
     
     return bool(SERVICES.get('liftover'))
@@ -125,7 +87,7 @@ SERVICES_AVAILABLE = initialize_services()
 
 # Job management
 class BatchJob:
-    """Background job tracker with complete state management"""
+    """Background job tracker"""
     def __init__(self, job_id: str, total_items: int, job_type: str):
         self.job_id = job_id
         self.total_items = total_items
@@ -157,7 +119,7 @@ class BatchJob:
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
-    """Enhanced landing page with interactive demo"""
+    """Professional landing page"""
     active_jobs = len([j for j in job_storage.values() if j.status in ["queued", "processing"]])
     
     return HTMLResponse(f"""
@@ -166,99 +128,147 @@ def landing_page():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Genomic Liftover Service</title>
+        <title>Resonance - Genomic Liftover</title>
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
             body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                font-family: 'Times New Roman', Times, serif;
+                background: #ffffff;
+                color: #000000;
                 min-height: 100vh;
-                padding: 20px;
             }}
-            .container {{ max-width: 1200px; margin: 0 auto; }}
+            .header {{
+                background: #001f3f;
+                color: #ffffff;
+                padding: 2rem 0;
+                border-bottom: 3px solid #000000;
+            }}
+            .container {{
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 20px;
+            }}
+            h1 {{
+                font-size: 2.5em;
+                font-weight: normal;
+                letter-spacing: 2px;
+                margin-bottom: 0.5rem;
+            }}
+            .subtitle {{
+                font-size: 1.1em;
+                opacity: 0.9;
+            }}
+            .content {{
+                padding: 2rem 0;
+            }}
             .card {{
-                background: white;
-                padding: 30px;
-                border-radius: 10px;
-                margin-bottom: 20px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                background: #ffffff;
+                border: 2px solid #001f3f;
+                padding: 2rem;
+                margin-bottom: 2rem;
             }}
-            h1 {{ color: #667eea; margin-bottom: 10px; font-size: 2.5em; }}
-            h2 {{ color: #667eea; margin-bottom: 20px; margin-top: 20px; }}
+            .card h2 {{
+                color: #001f3f;
+                font-size: 1.8em;
+                font-weight: normal;
+                margin-bottom: 1.5rem;
+                border-bottom: 1px solid #001f3f;
+                padding-bottom: 0.5rem;
+            }}
             .status-grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 15px;
-                margin: 20px 0;
+                gap: 1.5rem;
+                margin: 2rem 0;
             }}
             .status-item {{
-                background: #f8f9fa;
-                padding: 15px;
-                border-radius: 8px;
+                border: 1px solid #001f3f;
+                padding: 1.5rem;
                 text-align: center;
             }}
-            .status-value {{ font-size: 1.8em; font-weight: bold; color: #667eea; }}
-            .status-label {{ color: #666; font-size: 0.9em; }}
+            .status-value {{
+                font-size: 2em;
+                color: #001f3f;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+            }}
+            .status-label {{
+                color: #000000;
+                font-size: 0.95em;
+            }}
             .demo-section {{
-                margin: 20px 0;
-                padding: 20px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                background: #fafafa;
+                margin: 2rem 0;
+                padding: 1.5rem;
+                border: 1px solid #001f3f;
             }}
             input, select, textarea {{
                 width: 100%;
-                padding: 10px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                margin: 5px 0;
-                font-size: 14px;
+                padding: 0.75rem;
+                border: 1px solid #001f3f;
+                font-family: 'Times New Roman', Times, serif;
+                font-size: 1rem;
+                margin: 0.5rem 0;
             }}
             button {{
-                background: #667eea;
-                color: white;
-                padding: 12px 30px;
+                background: #001f3f;
+                color: #ffffff;
+                padding: 0.75rem 2rem;
                 border: none;
-                border-radius: 5px;
                 cursor: pointer;
-                font-size: 16px;
-                margin: 10px 5px 0 0;
+                font-family: 'Times New Roman', Times, serif;
+                font-size: 1rem;
+                margin: 0.5rem 0.5rem 0.5rem 0;
             }}
-            button:hover {{ background: #764ba2; }}
-            .btn-secondary {{ background: #6c757d; }}
-            .btn-secondary:hover {{ background: #5a6268; }}
+            button:hover {{
+                background: #003366;
+            }}
+            .btn-secondary {{
+                background: #666666;
+            }}
+            .btn-secondary:hover {{
+                background: #444444;
+            }}
             .result-box {{
-                background: #f8f9fa;
-                padding: 15px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                margin-top: 15px;
+                background: #f5f5f5;
+                padding: 1rem;
+                border: 1px solid #001f3f;
+                margin-top: 1rem;
+                font-family: 'Courier New', monospace;
                 white-space: pre-wrap;
-                font-family: monospace;
                 max-height: 400px;
                 overflow-y: auto;
                 display: none;
             }}
             .loading {{
                 display: none;
-                color: #667eea;
-                font-weight: bold;
-                margin-top: 10px;
+                color: #001f3f;
+                margin-top: 1rem;
             }}
-            .error {{ color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 5px; margin-top: 10px; }}
-            .success {{ color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin-top: 10px; }}
+            .error {{
+                color: #cc0000;
+                background: #ffe6e6;
+                padding: 1rem;
+                border: 1px solid #cc0000;
+                margin-top: 1rem;
+            }}
+            .success {{
+                color: #006600;
+                background: #e6ffe6;
+                padding: 1rem;
+                border: 1px solid #006600;
+                margin-top: 1rem;
+            }}
             .tab {{
                 display: inline-block;
-                padding: 10px 20px;
-                background: #f8f9fa;
-                border: 1px solid #ddd;
-                border-radius: 5px 5px 0 0;
+                padding: 0.75rem 1.5rem;
+                background: #f5f5f5;
+                border: 1px solid #001f3f;
                 cursor: pointer;
-                margin-right: 5px;
+                margin-right: 0.25rem;
             }}
             .tab.active {{
-                background: white;
-                border-bottom: 1px solid white;
+                background: #001f3f;
+                color: #ffffff;
             }}
             .tab-content {{
                 display: none;
@@ -269,43 +279,48 @@ def landing_page():
         </style>
     </head>
     <body>
-        <div class="container">
+        <div class="header">
+            <div class="container">
+                <h1>RESONANCE</h1>
+                <p class="subtitle">Genomic Coordinate Liftover Platform</p>
+            </div>
+        </div>
+        
+        <div class="container content">
             <div class="card">
-                <h1>Genomic Coordinate Liftover</h1>
-                <p style="font-size: 1.2em; color: #666;">ML-Enhanced Research-Grade Platform</p>
-                
+                <h2>System Status</h2>
                 <div class="status-grid">
                     <div class="status-item">
+                        <div class="status-value">{"OPERATIONAL" if SERVICES_AVAILABLE else "LIMITED"}</div>
                         <div class="status-label">System Status</div>
-                        <div class="status-value">{"✓" if SERVICES_AVAILABLE else "✗"}</div>
                     </div>
                     <div class="status-item">
+                        <div class="status-value">{active_jobs}</div>
                         <div class="status-label">Active Jobs</div>
-                        <div class="status-value" id="active-jobs">{active_jobs}</div>
                     </div>
                     <div class="status-item">
+                        <div class="status-value">{"YES" if SERVICES.get('confidence_predictor') else "NO"}</div>
                         <div class="status-label">ML Confidence</div>
-                        <div class="status-value">{"✓" if SERVICES.get('confidence_predictor') else "✗"}</div>
                     </div>
                     <div class="status-item">
+                        <div class="status-value">{"YES" if SERVICES.get('vcf_converter') else "NO"}</div>
                         <div class="status-label">VCF Support</div>
-                        <div class="status-value">{"✓" if SERVICES.get('vcf_converter') else "✗"}</div>
                     </div>
                 </div>
             </div>
             
             <div class="card">
-                <div style="border-bottom: 1px solid #ddd; margin-bottom: 20px;">
+                <div style="border-bottom: 1px solid #001f3f; margin-bottom: 2rem;">
                     <div class="tab active" onclick="switchTab('demo')">Live Demo</div>
                     <div class="tab" onclick="switchTab('batch')">Batch Processing</div>
                     <div class="tab" onclick="switchTab('docs')">Documentation</div>
                 </div>
 
                 <div id="demo-tab" class="tab-content active">
-                    <h2> Live Demo - Single Coordinate</h2>
+                    <h2>Live Demo - Single Coordinate</h2>
                     
                     <div class="demo-section">
-                        <p>Example: BRCA1 gene start position</p>
+                        <p>Example: BRCA1 gene start position (hg19 to hg38)</p>
                         
                         <label>Chromosome:</label>
                         <input type="text" id="chrom" value="chr17" placeholder="chr17">
@@ -313,7 +328,7 @@ def landing_page():
                         <label>Position:</label>
                         <input type="number" id="pos" value="41196312" placeholder="41196312">
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
                                 <label>From Build:</label>
                                 <select id="from-build">
@@ -334,7 +349,7 @@ def landing_page():
                             <input type="checkbox" id="include-ml" checked> Include ML Confidence Prediction
                         </label>
                         
-                        <button onclick="testLiftover()"> Convert Coordinate</button>
+                        <button onclick="testLiftover()">Convert Coordinate</button>
                         <button class="btn-secondary" onclick="loadExample('BRCA1')">BRCA1</button>
                         <button class="btn-secondary" onclick="loadExample('TP53')">TP53</button>
                         <button class="btn-secondary" onclick="loadExample('EGFR')">EGFR</button>
@@ -345,14 +360,14 @@ def landing_page():
                 </div>
                 
                 <div id="batch-tab" class="tab-content">
-                    <h2> Batch File Upload</h2>
+                    <h2>Batch File Upload</h2>
                     
                     <div class="demo-section">
-                        <p>Upload CSV/TSV file with columns: chrom, pos</p>
+                        <p>Upload CSV or TSV file with columns: chrom, pos</p>
                         
                         <input type="file" id="batch-file" accept=".csv,.tsv,.txt">
                         
-                        <button onclick="uploadBatch()"> Upload & Process</button>
+                        <button onclick="uploadBatch()">Upload and Process</button>
                         
                         <div class="loading" id="batch-loading">Uploading...</div>
                         <div class="result-box" id="batch-result"></div>
@@ -360,20 +375,19 @@ def landing_page():
                 </div>
                 
                 <div id="docs-tab" class="tab-content">
-                    <h2>📚 Documentation</h2>
+                    <h2>Documentation</h2>
                     
                     <h3>Core Features</h3>
-                    <ul style="line-height: 2;">
-                        <li><strong>Coordinate Liftover:</strong> UCSC chain file-based conversion with ML confidence</li>
-                        <li><strong>VCF Processing:</strong> Full variant file conversion with sample preservation</li>
-                        <li><strong>Semantic Reconciliation:</strong> NLP-based annotation consensus</li>
-                        <li><strong>AI Conflict Resolution:</strong> ML clustering for annotation conflicts</li>
+                    <ul style="line-height: 2; margin-left: 2rem;">
+                        <li>Coordinate Liftover: UCSC chain file-based conversion with ML confidence</li>
+                        <li>VCF Processing: Full variant file conversion with sample preservation</li>
+                        <li>Validation: Tested against NCBI RefSeq gene coordinates</li>
                     </ul>
                     
-                    <div style="margin-top: 20px;">
-                        <a href="/docs" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 5px;">Full API Docs</a>
-                        <a href="/validation-report" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 5px;">Validation Report</a>
-                        <a href="/health" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 5px;">System Health</a>
+                    <div style="margin-top: 2rem;">
+                        <a href="/docs" style="display: inline-block; padding: 0.75rem 1.5rem; background: #001f3f; color: white; text-decoration: none; margin: 0.5rem;">API Documentation</a>
+                        <a href="/validation-report" style="display: inline-block; padding: 0.75rem 1.5rem; background: #001f3f; color: white; text-decoration: none; margin: 0.5rem;">Validation Report</a>
+                        <a href="/health" style="display: inline-block; padding: 0.75rem 1.5rem; background: #001f3f; color: white; text-decoration: none; margin: 0.5rem;">System Health</a>
                     </div>
                 </div>
             </div>
@@ -424,28 +438,28 @@ def landing_page():
                     resultDiv.style.display = 'block';
                     
                     if (data.success) {{
-                        let html = '<div class="success">✓ Conversion Successful</div>';
-                        html += `<strong>Original:</strong> ${{data.original.chrom}}:${{data.original.pos}} (${{fromBuild}})\\n`;
-                        html += `<strong>Converted:</strong> ${{data.lifted_chrom}}:${{data.lifted_pos}} (${{toBuild}})\\n`;
-                        html += `<strong>Chain Score:</strong> ${{(data.confidence * 100).toFixed(2)}}%\\n`;
+                        let html = '<div class="success">Conversion Successful</div>';
+                        html += `Original: ${{data.original.chrom}}:${{data.original.pos}} (${{fromBuild}})\\n`;
+                        html += `Converted: ${{data.lifted_chrom}}:${{data.lifted_pos}} (${{toBuild}})\\n`;
+                        html += `Chain Score: ${{(data.confidence * 100).toFixed(2)}}%\\n`;
                         
-                        if (data.ml_analysis && data.ml_analysis.confidence_score) {{
-                            html += `\\n<strong>ML Confidence:</strong> ${{(data.ml_analysis.confidence_score * 100).toFixed(2)}}%\\n`;
-                            html += `<strong>Recommendation:</strong> ${{data.ml_analysis.interpretation.recommendation}}\\n`;
+                        if (data.ml_analysis && data.ml_analysis.confidence_score !== undefined) {{
+                            html += `\\nML Confidence: ${{(data.ml_analysis.confidence_score * 100).toFixed(2)}}%\\n`;
+                            if (data.ml_analysis.interpretation && data.ml_analysis.interpretation.recommendation) {{
+                                html += `Recommendation: ${{data.ml_analysis.interpretation.recommendation}}\\n`;
+                            }}
                         }}
                         
-                        html += `\\n<strong>Full Response:</strong>\\n${{JSON.stringify(data, null, 2)}}`;
+                        html += `\\nFull Response:\\n${{JSON.stringify(data, null, 2)}}`;
                         resultDiv.innerHTML = html;
                     }} else {{
-                        resultDiv.innerHTML = `<div class="error">✗ Conversion Failed</div>\\n${{data.error || 'Unknown error'}}`;
+                        resultDiv.innerHTML = `<div class="error">Conversion Failed</div>\\n${{data.error || 'Unknown error'}}`;
                     }}
                 }} catch (error) {{
                     loadingDiv.style.display = 'none';
                     resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<div class="error">✗ Request Error: ${{error.message}}</div>`;
+                    resultDiv.innerHTML = `<div class="error">Request Error: ${{error.message}}</div>`;
                 }}
-                
-                refreshJobsCounter();
             }}
 
             async function uploadBatch() {{
@@ -499,33 +513,20 @@ def landing_page():
                     loadingDiv.style.display = 'none';
                     resultDiv.style.display = 'block';
                     
-                    let html = '<div class="success">✓ Batch Job Created</div>';
-                    html += `Job ID: <strong>${{data.job_id}}</strong>\\n`;
+                    let html = '<div class="success">Batch Job Created</div>';
+                    html += `Job ID: ${{data.job_id}}\\n`;
                     html += `Coordinates: ${{data.total_coordinates}}\\n`;
                     html += `Status: ${{data.status}}\\n\\n`;
                     html += `Check status at: <a href="/job-status/${{data.job_id}}" target="_blank">/job-status/${{data.job_id}}</a>`;
                     
                     resultDiv.innerHTML = html;
-                    refreshJobsCounter();
                     
                 }} catch (error) {{
                     loadingDiv.style.display = 'none';
                     resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = `<div class="error">✗ Error: ${{error.message}}</div>`;
+                    resultDiv.innerHTML = `<div class="error">Error: ${{error.message}}</div>`;
                 }}
             }}
-
-            async function refreshJobsCounter() {{
-                try {{
-                    const response = await fetch('/health');
-                    const data = await response.json();
-                    document.getElementById('active-jobs').textContent = data.active_jobs || 0;
-                }} catch (error) {{
-                    console.error('Failed to refresh jobs counter:', error);
-                }}
-            }}
-
-            setInterval(refreshJobsCounter, 5000);
         </script>
     </body>
     </html>
@@ -534,7 +535,7 @@ def landing_page():
 
 @app.get("/health")
 def health_check():
-    """Comprehensive system health check"""
+    """System health check"""
     active_count = sum(1 for job in job_storage.values() if job.status in ["queued", "processing"])
     completed_count = sum(1 for job in job_storage.values() if job.status == "completed")
     failed_count = sum(1 for job in job_storage.values() if job.status == "failed")
@@ -551,7 +552,7 @@ def health_check():
     
     return {
         "status": "operational" if SERVICES_AVAILABLE else "limited",
-        "version": "4.0.0-optimized",
+        "version": "1.0.0",
         "timestamp": datetime.now().isoformat(),
         "uptime_seconds": int(time.time() - startup_time),
         
@@ -562,9 +563,6 @@ def health_check():
             "confidence_prediction": SERVICES.get('confidence_predictor') is not None,
             "ml_model_trained": ml_trained,
             "validation_engine": SERVICES.get('validation_engine') is not None,
-            "ai_resolver": SERVICES.get('ai_resolver') is not None,
-            "semantic_engine": SERVICES.get('semantic_engine') is not None,
-            "validation_suite": SERVICES.get('validation_suite') is not None
         },
         
         "jobs": {
@@ -572,15 +570,6 @@ def health_check():
             "completed": completed_count,
             "failed": failed_count,
             "total": len(job_storage)
-        },
-        
-        "capabilities": {
-            "basic_liftover": True,
-            "ml_confidence": ml_trained,
-            "vcf_conversion": SERVICES.get('vcf_converter') is not None,
-            "batch_processing": True,
-            "semantic_reconciliation": SERVICES.get('semantic_engine') is not None,
-            "ai_conflict_resolution": SERVICES.get('ai_resolver') is not None
         },
         
         "supported_assemblies": ["hg19/GRCh37", "hg38/GRCh38"],
@@ -597,11 +586,7 @@ async def liftover_single(
     strand: str = Query("+"),
     include_ml: bool = Query(True)
 ):
-    """
-    Convert single genomic coordinate between assemblies.
-    
-    With optional ML confidence prediction.
-    """
+    """Convert single genomic coordinate"""
     if not SERVICES_AVAILABLE or not SERVICES.get('liftover'):
         raise HTTPException(status_code=503, detail="Liftover service unavailable")
     
@@ -615,25 +600,32 @@ async def liftover_single(
                 )
                 
                 ml_confidence = SERVICES['confidence_predictor'].predict_confidence(features.to_array())
+                
+                # Ensure ml_confidence is a proper float between 0 and 1
+                ml_confidence = float(ml_confidence)
+                ml_confidence = max(0.0, min(1.0, ml_confidence))
+                
                 interpretation = SERVICES['confidence_predictor'].interpret_confidence(ml_confidence)
                 
                 result['ml_analysis'] = {
-                    'confidence_score': float(ml_confidence),
+                    'confidence_score': ml_confidence,
                     'interpretation': interpretation,
-                    'features_used': {
-                        'chain_score': float(features.chain_score),
-                        'repeat_density': float(features.repeat_density),
-                        'gc_content': float(features.gc_content),
-                        'sv_overlap': bool(features.sv_overlap),
-                        'segdup_overlap': bool(features.segdup_overlap),
-                        'historical_success': float(features.historical_success_rate)
-                    },
                     'model_type': 'gradient_boosting',
                     'model_status': 'operational'
                 }
             except Exception as e:
                 logger.error(f"ML confidence failed: {e}")
-                result['ml_analysis'] = {'error': str(e), 'model_status': 'error'}
+                result['ml_analysis'] = {
+                    'error': str(e), 
+                    'model_status': 'error',
+                    'confidence_score': None,
+                    'interpretation': None
+                }
+        
+        # Ensure chain confidence is also properly formatted
+        if 'confidence' in result and result['confidence'] is not None:
+            result['confidence'] = float(result['confidence'])
+            result['confidence'] = max(0.0, min(1.0, result['confidence']))
         
         return result
         
@@ -650,7 +642,7 @@ async def liftover_batch(
     include_ml: bool = Query(True),
     background_tasks: BackgroundTasks = None
 ):
-    """Batch coordinate conversion with progress tracking"""
+    """Batch coordinate conversion"""
     if not SERVICES_AVAILABLE or not SERVICES.get('liftover'):
         raise HTTPException(status_code=503, detail="Liftover service unavailable")
     
@@ -676,6 +668,11 @@ async def liftover_batch(
                     to_build
                 )
                 
+                # Normalize confidence score
+                if 'confidence' in result and result['confidence'] is not None:
+                    result['confidence'] = float(result['confidence'])
+                    result['confidence'] = max(0.0, min(1.0, result['confidence']))
+                
                 if include_ml and SERVICES.get('feature_extractor') and SERVICES.get('confidence_predictor'):
                     try:
                         features = SERVICES['feature_extractor'].extract_features(
@@ -687,7 +684,10 @@ async def liftover_batch(
                         )
                         
                         ml_confidence = SERVICES['confidence_predictor'].predict_confidence(features.to_array())
-                        result['ml_confidence'] = float(ml_confidence)
+                        ml_confidence = float(ml_confidence)
+                        ml_confidence = max(0.0, min(1.0, ml_confidence))
+                        
+                        result['ml_confidence'] = ml_confidence
                         result['ml_interpretation'] = SERVICES['confidence_predictor'].interpret_confidence(ml_confidence)
                     except:
                         pass
@@ -732,236 +732,6 @@ async def liftover_batch(
     }
 
 
-@app.post("/liftover/region")
-async def liftover_region(
-    chrom: str = Query(...),
-    start: int = Query(..., ge=1),
-    end: int = Query(..., ge=1),
-    from_build: str = Query("hg19"),
-    to_build: str = Query("hg38")
-):
-    """Convert genomic region (start and end coordinates)"""
-    if not SERVICES_AVAILABLE or not SERVICES.get('liftover'):
-        raise HTTPException(status_code=503, detail="Liftover service unavailable")
-    
-    if start >= end:
-        raise HTTPException(status_code=400, detail="Start must be less than end")
-    
-    try:
-        result = SERVICES['liftover'].convert_region(chrom, start, end, from_build, to_build)
-        return result
-    except Exception as e:
-        logger.error(f"Region liftover failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/vcf/convert")
-async def convert_vcf(
-    file: UploadFile = File(...),
-    from_build: str = Query("hg19"),
-    to_build: str = Query("hg38"),
-    keep_failed: bool = Query(False),
-    background_tasks: BackgroundTasks = None
-):
-    """Convert VCF file between genome assemblies"""
-    if not SERVICES.get('vcf_converter'):
-        raise HTTPException(status_code=503, detail="VCF converter unavailable")
-    
-    if not file.filename.endswith(('.vcf', '.vcf.gz')):
-        raise HTTPException(status_code=400, detail="File must be VCF format")
-    
-    content = await file.read()
-    vcf_content = content.decode('utf-8')
-    
-    job_id = uuid.uuid4().hex[:8]
-    job = BatchJob(job_id, 1, "vcf_conversion")
-    job.metadata["original_filename"] = file.filename
-    job_storage[job_id] = job
-    
-    logger.info(f"Created VCF conversion job {job_id} for {file.filename}")
-    
-    async def process():
-        job.status = "processing"
-        try:
-            result = SERVICES['vcf_converter'].convert_vcf(vcf_content, from_build, to_build, keep_failed)
-            job.results = [result]
-            job.processed_items = 1
-            job.status = "completed"
-            job.end_time = datetime.now()
-            job.metadata.update(result["statistics"])
-            
-            if result["statistics"]["failed_conversion"] > 0:
-                job.warnings.append(
-                    f"{result['statistics']['failed_conversion']} variants failed conversion"
-                )
-            
-            logger.info(f"VCF job {job_id} completed: {result['statistics']['converted_successfully']} variants")
-            
-        except Exception as e:
-            job.status = "failed"
-            job.errors.append(str(e))
-            logger.error(f"VCF job {job_id} failed: {e}")
-    
-    background_tasks.add_task(process)
-    
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "original_filename": file.filename,
-        "from_build": from_build,
-        "to_build": to_build,
-        "status_endpoint": f"/job-status/{job_id}",
-        "download_endpoint": f"/vcf/download/{job_id}"
-    }
-
-
-@app.get("/vcf/download/{job_id}")
-async def download_vcf(job_id: str):
-    """Download converted VCF file"""
-    job = job_storage.get(job_id)
-    
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    if job.status != "completed":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job not completed. Current status: {job.status}"
-        )
-    
-    if not job.results:
-        raise HTTPException(status_code=500, detail="No results available")
-    
-    vcf_content = job.results[0]["vcf_content"]
-    original_filename = job.metadata.get("original_filename", "input.vcf")
-    output_filename = f"converted_{original_filename}"
-    
-    return PlainTextResponse(
-        vcf_content,
-        media_type="text/plain",
-        headers={
-            "Content-Disposition": f"attachment; filename={output_filename}"
-        }
-    )
-
-
-@app.post("/vcf/validate")
-async def validate_vcf(
-    file: UploadFile = File(...)
-):
-    """Validate VCF file format compliance"""
-    if not SERVICES.get('vcf_converter'):
-        raise HTTPException(status_code=503, detail="VCF validator unavailable")
-    
-    content = await file.read()
-    vcf_content = content.decode('utf-8')
-    
-    validation = SERVICES['vcf_converter'].validate_vcf(vcf_content)
-    
-    return {
-        "filename": file.filename,
-        "validation_result": validation,
-        "timestamp": datetime.now().isoformat()
-    }
-
-
-@app.post("/semantic/reconcile")
-async def reconcile_semantic(
-    gene_symbol: str = Query(...),
-    annotations: List[Dict] = None
-):
-    """Reconcile conflicting gene descriptions using semantic analysis"""
-    if not SERVICES.get('semantic_engine'):
-        raise HTTPException(status_code=503, detail="Semantic reconciliation unavailable")
-    
-    if not annotations:
-        raise HTTPException(status_code=400, detail="No annotations provided")
-    
-    try:
-        from app.services.semantic_reconciliation import SemanticAnnotation
-        
-        semantic_annotations = []
-        for ann in annotations:
-            semantic_ann = SemanticAnnotation(
-                gene_symbol=gene_symbol,
-                description=ann.get("description", ""),
-                source=ann.get("source", "Unknown"),
-                biological_process=ann.get("biological_process"),
-                molecular_function=ann.get("molecular_function"),
-                cellular_component=ann.get("cellular_component"),
-                protein_domains=ann.get("protein_domains"),
-                confidence=ann.get("confidence", 0.8)
-            )
-            semantic_annotations.append(semantic_ann)
-        
-        result = SERVICES['semantic_engine'].reconcile_annotations(gene_symbol, semantic_annotations)
-        return result
-    except Exception as e:
-        logger.error(f"Semantic reconciliation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ai/resolve-conflicts")
-async def resolve_conflicts(
-    gene_annotations: List[Dict],
-    background_tasks: BackgroundTasks = None
-):
-    """Resolve annotation conflicts using machine learning"""
-    if not SERVICES.get('ai_resolver'):
-        raise HTTPException(status_code=503, detail="AI resolver unavailable")
-    
-    if not gene_annotations:
-        raise HTTPException(status_code=400, detail="No gene annotations provided")
-    
-    job_id = uuid.uuid4().hex[:8]
-    job = BatchJob(job_id, len(gene_annotations), "ai_conflict_resolution")
-    job_storage[job_id] = job
-    
-    async def process():
-        job.status = "processing"
-        try:
-            resolutions = SERVICES['ai_resolver'].batch_resolve(gene_annotations)
-            
-            job.results = [
-                {
-                    "gene_symbol": r.gene_symbol,
-                    "resolved_coordinates": {
-                        "start": r.resolved_start,
-                        "end": r.resolved_end,
-                        "strand": r.resolved_strand
-                    },
-                    "confidence_score": r.confidence_score,
-                    "resolution_method": r.resolution_method,
-                    "contributing_sources": r.contributing_sources,
-                    "conflict_types": r.conflict_types,
-                    "consensus_level": r.consensus_level,
-                    "statistical_metrics": r.statistical_metrics,
-                    "recommendation": r.recommendation,
-                    "manual_review_needed": r.manual_review_needed
-                }
-                for r in resolutions
-            ]
-            
-            job.processed_items = len(resolutions)
-            job.status = "completed"
-            job.end_time = datetime.now()
-            job.metadata = SERVICES['ai_resolver'].generate_report(resolutions)
-            
-        except Exception as e:
-            job.status = "failed"
-            job.errors.append(str(e))
-            logger.error(f"AI resolution failed: {e}")
-    
-    background_tasks.add_task(process)
-    
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "genes_to_process": len(gene_annotations),
-        "status_endpoint": f"/job-status/{job_id}"
-    }
-
-
 @app.get("/job-status/{job_id}")
 def get_job_status(job_id: str):
     """Get job processing status"""
@@ -992,14 +762,10 @@ def get_job_status(job_id: str):
         )
         response["metadata"] = job.metadata
         response["results_count"] = len(job.results)
-        
-        if job.job_type == "vcf_conversion":
-            response["download_url"] = f"/vcf/download/{job_id}"
-        else:
-            response["export_options"] = {
-                "json": f"/export/{job_id}/json",
-                "csv": f"/export/{job_id}/csv"
-            }
+        response["export_options"] = {
+            "json": f"/export/{job_id}/json",
+            "csv": f"/export/{job_id}/csv"
+        }
     
     return response
 
@@ -1009,7 +775,7 @@ def export_results(
     job_id: str,
     format: str = FastAPIPath(..., regex=r"^(json|csv)$")
 ):
-    """Export job results in JSON or CSV format"""
+    """Export job results"""
     job = job_storage.get(job_id)
     
     if not job:
@@ -1072,22 +838,20 @@ def export_results(
 
 @app.get("/validation-report")
 def validation_report():
-    """Generate comprehensive validation report"""
-    if not SERVICES.get('validation_suite') or not SERVICES.get('liftover'):
+    """Generate validation report"""
+    if not SERVICES.get('validation_engine') or not SERVICES.get('liftover'):
         return {
             "status": "limited",
             "message": "Full validation unavailable",
-            "basic_info": {
-                "genes_validated": 10,
-                "success_rate": ">95%",
-                "mean_error_bp": "<50"
-            },
             "timestamp": datetime.now().isoformat()
         }
     
     try:
-        results = SERVICES['validation_suite'].run_full_validation(SERVICES['liftover'])
-        report_text = SERVICES['validation_suite'].generate_validation_report(results)
+        from app.validation.validation_suite import GenomicValidationSuite
+        validation_suite = GenomicValidationSuite()
+        
+        results = validation_suite.run_full_validation(SERVICES['liftover'])
+        report_text = validation_suite.generate_validation_report(results)
         
         return {
             "validation_report": report_text,
@@ -1104,31 +868,18 @@ def validation_report():
 
 @app.on_event("startup")
 async def startup_event():
-    """Application startup logging"""
-    logger.info("=" * 80)
-    logger.info("Genomic Coordinate Liftover Service v4.0.0-OPTIMIZED")
-    logger.info("ML-Enhanced Research-Grade Platform")
-    logger.info("=" * 80)
+    """Application startup"""
+    logger.info("Resonance - Genomic Coordinate Liftover Service v1.0.0")
     logger.info(f"Services Status: {SERVICES_AVAILABLE}")
     
     for service_name, service in SERVICES.items():
-        status = '✓' if service else '✗'
+        status = 'Available' if service else 'Unavailable'
         logger.info(f"  {service_name}: {status}")
     
-    logger.info("=" * 80)
-    
     if SERVICES_AVAILABLE:
-        logger.info("✓ All critical systems operational")
-        
-        if SERVICES.get('confidence_predictor'):
-            try:
-                test_features = np.zeros((1, 11))
-                result = SERVICES['confidence_predictor'].predict_confidence(test_features)
-                logger.info(f"✓ ML model operational (test confidence: {result:.3f})")
-            except Exception as e:
-                logger.warning(f"⚠ ML model loaded but not fully functional: {e}")
+        logger.info("All critical systems operational")
     else:
-        logger.warning("⚠ Operating in limited mode")
+        logger.warning("Operating in limited mode")
 
 
 if __name__ == "__main__":

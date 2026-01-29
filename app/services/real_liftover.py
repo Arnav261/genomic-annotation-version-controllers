@@ -199,6 +199,7 @@ class RealLiftoverService:
                 "lifted_pos": lifted_pos + 1,  # Convert to 1-based
                 "lifted_strand": lifted_strand,
                 "confidence": score,
+                'confidence': float(max(0.0, min(1.0, score if score is not None else 0.0))),
                 "method": "UCSC_LiftOver",
                 "ambiguous": False,
                 "original": {"chrom": chrom, "pos": pos, "build": from_build}
