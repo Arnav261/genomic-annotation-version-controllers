@@ -18,16 +18,15 @@ from io import StringIO
 from app.database import SessionLocal, Job
 import numpy as np
 from app.config import settings
-OPTIONAL_SERVICES = {}
+try:
+    from app.services.feature_extractor import FeatureExtractor
+except ImportError:
+    FeatureExtractor = None
 
-def safe_import(name, path):
-    try:
-        module = __import__(path, fromlist=[name])
-        OPTIONAL_SERVICES[name] = getattr(module, name)
-    except Exception:
-        OPTIONAL_SERVICES[name] = None
-safe_import('FeatureExtractor', 'app.services.feature_extractor')
-safe_import('ConfidencePredictor', 'app.services.confidence_predictor')
+try:
+    from app.services.confidence_predictor import ConfidencePredictor
+except ImportError:
+    ConfidencePredictor = None
 startup_time = time.time()
 
 
@@ -73,7 +72,7 @@ def init_services():
     except Exception:
         SERVICES["liftover"] = SERVICES.get("chain_liftover")
 
-    if FeatureExtractor:
+    if FeatureExtractor is not None:
         try:
             SERVICES["feature_extractor"] = FeatureExtractor(
                 data_dir=str(settings.REF_DIR)
@@ -83,7 +82,7 @@ def init_services():
     else:
         SERVICES["feature_extractor"] = None
 
-    if ConfidencePredictor:
+    if ConfidencePredictor is not None:
         try:
             cp = ConfidencePredictor(model_dir=str(settings.MODEL_DIR))
             cp.load_model_if_exists()
