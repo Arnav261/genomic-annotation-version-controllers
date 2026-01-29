@@ -67,7 +67,7 @@ class LiftoverRequest(BaseModel):
     include_bayesian: bool = Field(default=False, description="Include Bayesian confidence intervals")
     use_ensemble: bool = Field(default=True, description="Use ensemble liftover method")
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_builds(cls, values):
         """Ensure from and to builds are different"""
         if values.get("from_build") == values.get("to_build"):
