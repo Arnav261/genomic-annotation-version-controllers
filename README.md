@@ -290,12 +290,6 @@ How to contribute:
 
 ---
 
-## License
-
-MIT License - See LICENSE file for details
-
----
-
 ## Acknowledgments
 
 - UCSC Genome Browser: chain files and liftover resources
@@ -321,6 +315,6 @@ Rating: 7/10 for research use; with additional validation, documentation, and be
 
 ---
 
-**Last Updated:** 2026-01-29  
-**Version:** 4.1.0  
+**Last Updated:** 2026-01-30  
+**Version:** 5.0.0  
 **Status:** Active Development
