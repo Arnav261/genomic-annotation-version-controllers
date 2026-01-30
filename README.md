@@ -5,7 +5,7 @@
 
 ## What This Tool Actually Does
 
-### Core Features ✓
+### Core Features 
 
 1. **Accurate Coordinate Liftover**
    - Uses UCSC LiftOver chain files (pyliftover)
@@ -43,7 +43,7 @@
 
 ---
 
-## What This Tool Does NOT Do ✗
+## What This Tool Does NOT Do 
 
 Be honest:
 - This is NOT clinical-grade variant interpretation (not FDA/CLIA).
@@ -186,7 +186,7 @@ curl -X POST "http://localhost:8000/liftover/batch" \
 
 ## Development Roadmap
 
-### Phase 1: Current State ✓
+### Phase 1: Previous State 
 - [x] Core liftover using UCSC chain files
 - [x] ML confidence prediction (calibrated gradient boosting)
 - [x] VCF conversion and streaming support
