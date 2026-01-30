@@ -19,8 +19,8 @@ COPY . /app
 # Install pip separately and requirements
 RUN pip install --upgrade pip
 # Install base + prod
-RUN pip install -r requirements/requirements-base.txt
-RUN pip install -r requirements/requirements-prod.txt
+RUN pip install -r requirements/base.txt
+RUN pip install -r requirements/prod.txt
 
 # Create a non-root user
 RUN useradd --create-home appuser

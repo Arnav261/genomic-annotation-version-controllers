@@ -35,17 +35,17 @@ IMPORTANT: follow the steps exactly and do them in order. This file is self-cont
    ```
 2. Install base deps:
    ```
-   pip install -r requirements/requirements-base.txt
+   pip install -r requirements/base.txt
    ```
 3. Install production extras (torch CPU wheel — choose appropriate instruction for your platform):
    ```
    # For CPU-only PyTorch (Linux example)
    pip install --index-url https://download.pytorch.org/whl/cpu/ torch
-   pip install -r requirements/requirements-prod.txt
+   pip install -r requirements/prod.txt
    ```
 4. Install dev/test deps (optional):
    ```
-   pip install -r requirements/requirements-dev.txt
+   pip install -r requirements/dev.txt
    ```
 
 ## 5. Environment variables (create `.env` in repo root)
